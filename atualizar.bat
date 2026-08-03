@@ -44,8 +44,9 @@ echo.
 git pull
 if errorlevel 1 (
     echo.
-    echo   [ERRO] Nao consegui atualizar. Pode ser falta de internet, ou
-    echo   voce editou algum arquivo do projeto ^(gerando conflito^).
+    echo   [ERRO] Nao consegui atualizar. Pode ser falta de internet,
+    echo   voce editou algum arquivo do projeto ^(gerando conflito^)
+    echo   ou o projeto esta totalmente atualizado.
     echo.
     pause
     exit /b 1
