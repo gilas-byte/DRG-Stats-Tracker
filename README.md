@@ -108,6 +108,23 @@ comparison stays clean.
 > or network access). Only native code could escape that, which would be heavy and fragile.
 > So the capture is external (the watcher), not a mod.
 
+## 🔄 Keeping it updated
+
+When this repository gets new code, updating is one step — and it **never touches your
+data**: the database (`drg_stats.db`), the log and the `.sav` files are gitignored, so your
+history and snapshots survive the update untouched.
+
+- **Windows:** double-click **`atualizar.bat`** — it runs `git pull` for you.
+- **Any OS (manual):** `git pull`
+
+The dashboard also **checks on its own**: when a newer version exists on GitHub, a
+**🔔 update available** notice appears in the sidebar (checked at most once per hour).
+
+> **Requirements:** [Git](https://git-scm.com/downloads) installed, and the project obtained
+> via `git clone` (see [Getting started](#-getting-started-any-pc-little-configuration)). If
+> you downloaded the **ZIP**, there's no link to the repo — grab a fresh ZIP, or switch to
+> `git clone` once to get updates from then on.
+
 ## 🧠 How the reverse engineering works
 
 The save is a **GVAS** file (Unreal Engine's binary format): ~1.4 million raw bytes, no
@@ -139,6 +156,7 @@ dashboard.py            # Streamlit panel: kills, progress, overclocks, table, C
 drg_watcher_launch.bat  # Steam launcher (starts the watcher + the game).
 configurar_steam.bat    # generates the Launch Options line and copies it to the clipboard.
 abrir_dashboard.bat     # double-click opens the panel (installs Streamlit the first time).
+atualizar.bat           # double-click updates the project (git pull); keeps your data.
 guids.json              # GUID -> overclock/cosmetic (weapon, name, cost). The "catalog".
 all_drg_enemies.json    # GUID -> enemy name (the 77 species).
 drg_stats.db            # the database (generated; not under version control).
@@ -278,6 +296,23 @@ dia** (atualizada pro estado do fim do dia), então o comparativo dia-a-dia fica
 > fechada (sem acesso a arquivos, processos ou rede). Só código nativo escaparia disso,
 > o que seria pesado e frágil. Por isso a captura é externa (o vigia), não um mod.
 
+## 🔄 Como atualizar
+
+Quando este repositório recebe código novo, atualizar é um passo só — e **nunca mexe nos
+seus dados**: o banco (`drg_stats.db`), o log e os `.sav` estão no `.gitignore`, então seu
+histórico e suas fotos sobrevivem intactos à atualização.
+
+- **Windows:** duplo clique em **`atualizar.bat`** — ele roda o `git pull` pra você.
+- **Qualquer SO (manual):** `git pull`
+
+O painel também **checa sozinho**: quando existe versão nova no GitHub, aparece um aviso
+**🔔 atualização disponível** na barra lateral (verificado no máximo uma vez por hora).
+
+> **Pré-requisitos:** [Git](https://git-scm.com/downloads) instalado, e o projeto pego via
+> `git clone` (ver [Começando](#-começando-qualquer-pc-pouca-configuração)). Se você baixou
+> o **ZIP**, não existe o vínculo com o repositório — baixe um ZIP novo, ou passe a usar
+> `git clone` uma vez pra receber atualizações daí em diante.
+
 ## 🧠 Como a engenharia reversa funciona
 
 O save é um arquivo **GVAS** (formato binário da Unreal Engine): ~1,4 milhão de bytes crus,
@@ -308,6 +343,7 @@ dashboard.py            # painel Streamlit: kills, evolução, overclocks, tabel
 drg_watcher_launch.bat  # lançador pra Steam (sobe o vigia + o jogo).
 configurar_steam.bat    # gera a linha das Launch Options e copia pro clipboard.
 abrir_dashboard.bat     # duplo clique abre o painel (instala o Streamlit na 1ª vez).
+atualizar.bat           # duplo clique atualiza o projeto (git pull); preserva seus dados.
 guids.json              # GUID -> overclock/cosmético (arma, nome, custo). O "catálogo".
 all_drg_enemies.json    # GUID -> nome do bicho (as 77 espécies).
 drg_stats.db            # o banco (gerado; fora do controle de versão).
