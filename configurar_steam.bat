@@ -1,17 +1,17 @@
 @echo off
 rem ============================================================
 rem  configurar_steam.bat
-rem  Monta a linha das LAUNCH OPTIONS da Steam com o caminho
-rem  DESTE PC e copia pro clipboard. Voce so cola na Steam.
+rem  Builds Steam's LAUNCH OPTIONS line with THIS PC's path and
+rem  copies it to the clipboard. You just paste it into Steam.
 rem
-rem  Como usar:
-rem    1) De duplo clique neste arquivo.
-rem    2) Steam -> DRG -> botao direito -> Propriedades ->
-rem       Geral -> Opcoes de Inicializacao.
-rem    3) Cole com Ctrl+V (ja esta no clipboard) e feche.
+rem  How to use:
+rem    1) Double-click this file.
+rem    2) Steam -> DRG -> right-click -> Properties ->
+rem       General -> Launch Options.
+rem    3) Paste with Ctrl+V (already on the clipboard) and close.
 rem
-rem  %~dp0 = a pasta deste .bat (com barra no fim). Assim o
-rem  caminho sai certo em qualquer computador, sem digitar nada.
+rem  %~dp0 = this .bat's folder (with a trailing slash). This way
+rem  the path comes out right on any computer, without typing.
 rem ============================================================
 setlocal
 
@@ -23,8 +23,8 @@ echo(
 echo     "%PASTA%drg_watcher_launch.bat" %%command%%
 echo(
 
-rem Escreve a linha num arquivo temporario e joga pro clipboard via 'clip'
-rem (arquivo evita o espaco/quebra que o 'echo ... | clip' costuma deixar).
+rem Write the line to a temp file and pipe it to the clipboard via 'clip'
+rem (a file avoids the trailing space/newline that 'echo ... | clip' tends to leave).
 > "%TEMP%\_steam_line.txt" echo "%PASTA%drg_watcher_launch.bat" %%command%%
 clip < "%TEMP%\_steam_line.txt"
 del "%TEMP%\_steam_line.txt"

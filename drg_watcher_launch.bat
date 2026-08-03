@@ -1,16 +1,16 @@
 @echo off
 rem ============================================================
-rem  Lancador: sobe o vigia (watcher.py) escondido e depois o
-rem  jogo. Vai nas LAUNCH OPTIONS da Steam exatamente assim:
+rem  Launcher: starts the watcher (watcher.py) hidden and then
+rem  the game. Goes in Steam's LAUNCH OPTIONS exactly like this:
 rem
 rem      "C:\...\Papaio-Stats\drg_watcher_launch.bat" %command%
 rem
-rem  %~dp0 = a pasta deste .bat (acha o watcher.py do lado).
-rem  %*    = tudo que a Steam passou (= %command% = o jogo).
+rem  %~dp0 = this .bat's folder (finds watcher.py next to it).
+rem  %*    = everything Steam passed (= %command% = the game).
 rem ============================================================
 
-rem 1) sobe o vigia escondido, sem travar este .bat (start = destaca)
+rem 1) start the watcher hidden, without blocking this .bat (start = detaches)
 start "" /min pythonw "%~dp0watcher.py"
 
-rem 2) lanca o jogo e SEGURA enquanto ele roda (a Steam espera isto)
+rem 2) launch the game and HOLD while it runs (Steam expects this)
 %*

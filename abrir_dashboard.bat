@@ -1,11 +1,11 @@
 @echo off
 REM ==========================================================================
-REM  Abrir Dashboard.bat  --  DUPLO CLIQUE aqui para abrir o painel do DRG.
-REM  Nao precisa saber programar: este arquivo cuida de tudo.
-REM    1) confere se o Python esta instalado;
-REM    2) instala o Streamlit na primeira vez (so uma vez);
-REM    3) abre o painel no seu navegador.
-REM  Para fechar depois: volte nesta janela preta e aperte Ctrl+C, ou so feche.
+REM  abrir_dashboard.bat  --  DOUBLE-CLICK here to open the DRG panel.
+REM  No programming needed: this file handles everything.
+REM    1) checks whether Python is installed;
+REM    2) installs Streamlit the first time (only once);
+REM    3) opens the panel in your browser.
+REM  To close it later: come back to this black window and press Ctrl+C, or just close it.
 REM ==========================================================================
 title DRG Stats Tracker
 cd /d "%~dp0"
@@ -16,7 +16,7 @@ echo      DRG Stats Tracker - abrindo o painel...
 echo   ============================================
 echo.
 
-REM --- Acha o Python (tenta o lancador "py" e depois "python") ---
+REM --- Find Python (try the "py" launcher, then "python") ---
 set "PY="
 where py >nul 2>nul && set "PY=py"
 if not defined PY (
@@ -31,7 +31,7 @@ if not defined PY (
     exit /b 1
 )
 
-REM --- Streamlit instalado? Se nao, instala (so acontece na 1a vez) ---
+REM --- Is Streamlit installed? If not, install it (only happens the 1st time) ---
 %PY% -c "import streamlit" >nul 2>nul
 if errorlevel 1 (
     echo   Primeira vez: instalando o Streamlit ^(pode demorar 1-2 min^)...
