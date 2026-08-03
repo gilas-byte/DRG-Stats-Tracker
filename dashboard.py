@@ -20,8 +20,10 @@ Depends on: streamlit (which brings the pandas and altair we use here), plus the
 project files: drg_stats.db, drg_save_parser.py, snapshot.py.
 """
 
+import sys
 import json
 import sqlite3
+import subprocess
 from pathlib import Path
 from datetime import datetime
 from collections import defaultdict
@@ -322,9 +324,61 @@ if conn is None or carregar_snapshots(conn).empty:
 
 snaps = carregar_snapshots(conn)
 
+# --------------------------- UPDATE CHECK ----------------------------------
+# Windows: keep the git subprocess from flashing a console window (see CLAUDE.md
+# gotcha). On other OSes the flag is 0 (no-op).
+_SEM_JANELA = 0x08000000 if sys.platform == "win32" else 0
+
+
+@st.cache_data(ttl=3600)   # ask GitHub at most once per hour (fetch is the slow bit)
+def checar_atualizacao() -> dict:
+    """Ask GitHub (via git) whether there's a newer version of the project.
+
+    Returns {"estado": "desatualizado"|"atualizado"|"indisponivel", "atras": N}.
+    Fails SILENTLY ("indisponivel") when git is missing, this isn't a git clone
+    (a ZIP download), or there's no network — the panel must never scare the user.
+    """
+    def git(*args):
+        return subprocess.run(
+            ["git", *args], cwd=Path(__file__).parent,
+            capture_output=True, text=True, timeout=10,
+            creationflags=_SEM_JANELA,
+        )
+    try:
+        # Is this folder a git clone at all? (ZIP downloads are not.)
+        r = git("rev-parse", "--is-inside-work-tree")
+        if r.returncode != 0 or r.stdout.strip() != "true":
+            return {"estado": "indisponivel"}
+        # Download the newest refs from GitHub (info only — no merge, no file change).
+        if git("fetch", "--quiet").returncode != 0:
+            return {"estado": "indisponivel"}   # no network / no remote
+        # Which branch do we track? (usually origin/main)
+        up = git("rev-parse", "--abbrev-ref", "--symbolic-full-name", "@{u}")
+        upstream = up.stdout.strip() if up.returncode == 0 else "origin/main"
+        # How many commits is our local copy BEHIND the remote?
+        cnt = git("rev-list", "--count", f"HEAD..{upstream}")
+        if cnt.returncode != 0:
+            return {"estado": "indisponivel"}
+        atras = int(cnt.stdout.strip() or 0)
+        return {"estado": "desatualizado" if atras else "atualizado", "atras": atras}
+    except Exception:
+        return {"estado": "indisponivel"}
+
+
 # --------------------------- SIDEBAR ---------------------------------------
 with st.sidebar:
     st.header("⚙️ Controles")
+
+    # Update notification: warns (once/hour) when the GitHub repo has newer code.
+    _upd = checar_atualizacao()
+    if _upd["estado"] == "desatualizado":
+        st.warning(
+            f"🔔 Tem atualização disponível ({_upd['atras']} "
+            f"{'novidade' if _upd['atras'] == 1 else 'novidades'})!\n\n"
+            "Dê duplo clique em **atualizar.bat** (ou rode `git pull`) e reabra o painel."
+        )
+    elif _upd["estado"] == "atualizado":
+        st.caption("✅ Você está na última versão")
 
     if st.button("📸 Atualizar agora", type="primary", width='stretch',
                  help="Lê o save do jogo e grava uma foto nova"):
