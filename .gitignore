@@ -1,0 +1,35 @@
+# ---- Dados gerados em tempo de execução (não versionar) ----
+drg_stats.db
+drg_stats.db-journal
+drg_stats.db-wal
+drg_stats.db-shm
+watcher.log
+
+# ---- Saves e dados pessoais do jogo ----
+*.sav
+
+# ---- Python ----
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+venv/
+env/
+*.egg-info/
+.pytest_cache/
+
+# ---- Ferramentas de terceiros baixadas só pra referência ----
+mint-master/
+
+# ---- Screenshots de trabalho / temporários ----
+imagens/
+
+# ---- Editores / SO ----
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# ---- .md's ----
+*.md
+!README.md

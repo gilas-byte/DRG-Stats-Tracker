@@ -1,0 +1,12 @@
+# Tema do painel (cores DRG: caverna preta + laranja âmbar).
+# O Streamlit lê este arquivo sozinho ao rodar o dashboard.
+[theme]
+base = "dark"
+primaryColor = "#eb6834"
+backgroundColor = "#12100e"
+secondaryBackgroundColor = "#1c1917"
+textColor = "#f5efe6"
+font = "sans serif"
+
+[browser]
+gatherUsageStats = false
