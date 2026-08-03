@@ -1,23 +1,23 @@
 #!/usr/bin/env python3
 """
-dashboard.py — o PAINEL do DRG Stats Tracker.
+dashboard.py — the DRG Stats Tracker PANEL.
 
-Lê o banco drg_stats.db (as "fotos" que o snapshot.py foi gravando) e desenha
-tudo bonito num site interativo: ranking de kills por espécie, evolução ao longo
-do tempo, créditos, tempo de jogo e o "quanto você matou desde a última foto".
+Reads the drg_stats.db database (the "snapshots" that snapshot.py has been storing)
+and draws everything nicely in an interactive site: kills-per-species ranking,
+progress over time, credits, playtime and "how much you killed since the last snapshot".
 
-Feito pra quem NÃO é dev: tem um botão "📸 Atualizar agora" que lê o save e grava
-uma foto nova sem precisar de terminal. Basta abrir e clicar.
+Built for non-devs: it has a "📸 Atualizar agora" button that reads the save and stores
+a new snapshot with no terminal needed. Just open it and click.
 
-Como abrir (o jeito fácil):
-    -> dê DUPLO CLIQUE em "Abrir Dashboard.bat"
+How to open (the easy way):
+    -> DOUBLE-CLICK "abrir_dashboard.bat"
 
-Como abrir (o jeito manual):
+How to open (the manual way):
     pip install streamlit
     streamlit run dashboard.py
 
-Depende de: streamlit (que já traz junto o pandas e o altair que usamos aqui),
-mais os arquivos do projeto: drg_stats.db, drg_save_parser.py, snapshot.py.
+Depends on: streamlit (which brings the pandas and altair we use here), plus the
+project files: drg_stats.db, drg_save_parser.py, snapshot.py.
 """
 
 import json
@@ -30,35 +30,35 @@ import pandas as pd
 import altair as alt
 import streamlit as st
 
-# snapshot.py é do mesmo projeto: reaproveitamos a lógica de achar o save e gravar
-# a foto, pra o botão "Atualizar agora" funcionar sem o usuário abrir um terminal.
+# snapshot.py is part of the same project: we reuse the logic of finding the save and
+# storing the snapshot, so the "Atualizar agora" button works without a terminal.
 import snapshot
-import drg_save_parser as drg   # pra ler overclocks/cosméticos direto do save atual
+import drg_save_parser as drg   # to read overclocks/cosmetics straight from the current save
 
 # ----------------------------------------------------------------------------
-# PALETA (tema DRG: preto industrial + laranja âmbar).
-# A regra de dataviz aqui: kills por espécie é MAGNITUDE -> uma cor só, do claro
-# ao escuro (ramp sequencial). Nada de arco-íris. O laranja combina com o jogo.
+# PALETTE (DRG theme: industrial black + amber orange).
+# The dataviz rule here: kills per species is MAGNITUDE -> a single hue, light to
+# dark (sequential ramp). No rainbow. Orange matches the game.
 # ----------------------------------------------------------------------------
 DB_PATH = "drg_stats.db"
 
-COR_FUNDO      = "#12100e"   # preto quente (rocha)
-COR_SURFACE    = "#1c1917"   # cartões
-COR_TEXTO      = "#f5efe6"   # texto principal (creme)
-COR_TEXTO_FRACO = "#a89f92"  # eixos/labels
-COR_LARANJA    = "#eb6834"   # âmbar DRG (destaque)
-COR_LARANJA_ESC = "#8f3a18"  # ponta escura do ramp
-COR_GRID       = "#332e29"   # linhas de grade discretas
+COR_FUNDO      = "#12100e"   # warm black (rock)
+COR_SURFACE    = "#1c1917"   # cards
+COR_TEXTO      = "#f5efe6"   # main text (cream)
+COR_TEXTO_FRACO = "#a89f92"  # axes/labels
+COR_LARANJA    = "#eb6834"   # DRG amber (highlight)
+COR_LARANJA_ESC = "#8f3a18"  # dark end of the ramp
+COR_GRID       = "#332e29"   # subtle grid lines
 
-# Ramp sequencial de 1 cor (claro -> escuro) para as barras de magnitude.
+# Single-hue sequential ramp (light -> dark) for the magnitude bars.
 RAMP_LARANJA = ["#f6b98f", "#f19a63", "#eb6834", "#c14f22", "#8f3a18"]
 
 
 # ----------------------------------------------------------------------------
-# ACESSO AO BANCO
+# DATABASE ACCESS
 # ----------------------------------------------------------------------------
 def conectar() -> sqlite3.Connection | None:
-    """Abre o banco em modo só-leitura (o painel nunca escreve direto)."""
+    """Open the database read-only (the panel never writes directly)."""
     if not Path(DB_PATH).exists():
         return None
     conn = sqlite3.connect(DB_PATH)
@@ -67,16 +67,16 @@ def conectar() -> sqlite3.Connection | None:
 
 
 def carregar_snapshots(conn) -> pd.DataFrame:
-    """Todas as fotos, mais antiga -> mais nova. Vira uma tabela do pandas."""
+    """All snapshots, oldest -> newest. Becomes a pandas table."""
     df = pd.read_sql_query(
         "SELECT * FROM snapshots ORDER BY id ASC", conn,
     )
     if not df.empty:
-        # taken_at vem como texto ISO em UTC (é assim que a gente grava — padrão
-        # certo, independente de fuso). Pra EXIBIR, convertemos pro fuso LOCAL do
-        # PC (ex.: Brasil = UTC-3) e só então tiramos o timezone (deixa "ingênua"
-        # pro Altair/strftime). datetime.now().astimezone().tzinfo pega o fuso do
-        # PC automaticamente — sem hardcode, funciona em qualquer máquina.
+        # taken_at comes as ISO text in UTC (that's how we store it — the right,
+        # timezone-neutral standard). To DISPLAY, we convert to the PC's LOCAL
+        # timezone (e.g. Brazil = UTC-3) and only then drop the timezone (make it
+        # "naive" for Altair/strftime). datetime.now().astimezone().tzinfo grabs the
+        # PC's timezone automatically — no hardcoding, works on any machine.
         fuso_local = datetime.now().astimezone().tzinfo
         df["quando"] = (pd.to_datetime(df["taken_at"], utc=True)
                         .dt.tz_convert(fuso_local)
@@ -85,22 +85,22 @@ def carregar_snapshots(conn) -> pd.DataFrame:
 
 
 def carregar_kills(conn, snapshot_id: int) -> pd.DataFrame:
-    """As contagens por espécie de UMA foto específica, do maior pro menor."""
+    """The per-species counts of ONE specific snapshot, highest to lowest."""
     df = pd.read_sql_query(
         """SELECT guid, name, count
            FROM kills WHERE snapshot_id = ?
            ORDER BY count DESC""",
         conn, params=(snapshot_id,),
     )
-    # nome pode ser NULL (bicho sem tradução). Mostramos o começo do GUID no lugar.
+    # name may be NULL (untranslated creature). We show the start of the GUID instead.
     df["especie"] = df["name"].fillna("GUID:" + df["guid"].str.slice(0, 8))
     return df
 
 
 def carregar_deltas(conn, id_atual: int, id_anterior: int) -> pd.DataFrame:
     """
-    Quanto cada espécie CRESCEU entre duas fotos. Repare: o delta é CALCULADO
-    na hora com um JOIN — a gente guarda fatos (contagens), não derivados.
+    How much each species GREW between two snapshots. Note: the delta is COMPUTED
+    on the fly with a JOIN — we store facts (counts), not derived values.
     """
     df = pd.read_sql_query(
         """SELECT COALESCE(k2.name, 'GUID:'||substr(k2.guid,1,8)) AS especie,
@@ -117,10 +117,10 @@ def carregar_deltas(conn, id_atual: int, id_anterior: int) -> pd.DataFrame:
 
 
 # ----------------------------------------------------------------------------
-# FORMATADORES (deixar número gigante legível)
+# FORMATTERS (make a giant number readable)
 # ----------------------------------------------------------------------------
 def fmt_num(n) -> str:
-    """75466 -> '75.466' (ponto de milhar no estilo BR)."""
+    """75466 -> '75.466' (BR-style thousands separator)."""
     if n is None:
         return "—"
     return f"{int(n):,}".replace(",", ".")
@@ -134,17 +134,17 @@ def fmt_horas(segundos) -> str:
 
 
 def fmt_quando(dt) -> str:
-    """Data/hora amigável."""
+    """Friendly date/time."""
     if pd.isna(dt):
         return "—"
     return dt.strftime("%d/%m/%Y %H:%M")
 
 
 # ----------------------------------------------------------------------------
-# AÇÃO: tirar uma foto nova (o que o snapshot.py faz, só que por um botão)
+# ACTION: take a new snapshot (what snapshot.py does, but via a button)
 # ----------------------------------------------------------------------------
 def atualizar_agora() -> str:
-    """Lê o save e grava uma foto nova. Devolve uma mensagem pro usuário."""
+    """Read the save and store a new snapshot. Returns a message for the user."""
     save_path = snapshot.find_save()
     if save_path is None or not save_path.exists():
         return "❌ Não achei o save automaticamente. Rode o snapshot.py apontando o caminho uma vez."
@@ -160,10 +160,10 @@ def atualizar_agora() -> str:
 
 
 # ----------------------------------------------------------------------------
-# GRÁFICOS (Altair)
+# CHARTS (Altair)
 # ----------------------------------------------------------------------------
 def grafico_barras_especies(df: pd.DataFrame, top_n: int) -> alt.Chart:
-    """Ranking de kills por espécie — barras horizontais, ramp laranja (magnitude)."""
+    """Kills-per-species ranking — horizontal bars, orange ramp (magnitude)."""
     d = df.head(top_n).copy()
     base = alt.Chart(d).encode(
         y=alt.Y("especie:N", sort="-x", title=None,
@@ -174,12 +174,12 @@ def grafico_barras_especies(df: pd.DataFrame, top_n: int) -> alt.Chart:
                               gridColor=COR_GRID, format="~s")),
     )
     barras = base.mark_bar(cornerRadiusEnd=4, height=alt.RelativeBandSize(0.72)).encode(
-        # cor = magnitude (ramp sequencial de 1 hue), sem legenda: a barra fala por si.
+        # color = magnitude (single-hue sequential ramp), no legend: the bar speaks for itself.
         color=alt.Color("count:Q", scale=alt.Scale(range=RAMP_LARANJA), legend=None),
         tooltip=[alt.Tooltip("especie:N", title="Espécie"),
                  alt.Tooltip("count:Q", title="Kills", format=",")],
     )
-    # rótulo do valor direto na ponta da barra (leitura sem passar o mouse)
+    # value label right at the bar's tip (readable without hovering)
     rotulos = base.mark_text(
         align="left", dx=4, color=COR_TEXTO, fontSize=11,
     ).encode(text=alt.Text("count:Q", format=","))
@@ -191,7 +191,7 @@ def grafico_barras_especies(df: pd.DataFrame, top_n: int) -> alt.Chart:
 
 
 def grafico_evolucao(df: pd.DataFrame, coluna: str, titulo: str, cor: str) -> alt.Chart:
-    """Evolução de uma métrica ao longo das fotos — linha única no tempo."""
+    """Progress of one metric across snapshots — a single line over time."""
     d = df.dropna(subset=[coluna])
     linha = alt.Chart(d).mark_line(
         color=cor, strokeWidth=2, point=alt.OverlayMarkDef(color=cor, size=55),
@@ -208,22 +208,22 @@ def grafico_evolucao(df: pd.DataFrame, coluna: str, titulo: str, cor: str) -> al
 
 
 # ----------------------------------------------------------------------------
-# OVERCLOCKS / COSMÉTICOS (lê o SAVE atual + cruza com guids.json)
+# OVERCLOCKS / COSMETICS (reads the CURRENT save + cross-refs guids.json)
 # ----------------------------------------------------------------------------
-# Diferente do resto do painel (que lê o BANCO/histórico), o comparativo de
-# overclocks é sobre o estado ATUAL. Então lemos o save direto. Cacheado com
-# @st.cache_data pra não reparsear o save a cada clique (o Streamlit re-roda o
-# script inteiro toda interação — ver seção 11.0 do CLAUDE.md).
+# Unlike the rest of the panel (which reads the DATABASE/history), the overclock
+# comparison is about the CURRENT state. So we read the save directly. Cached with
+# @st.cache_data so we don't re-parse the save on every click (Streamlit re-runs the
+# whole script on every interaction — see section 11.0 of CLAUDE.md).
 @st.cache_data(show_spinner=False)
 def carregar_guids() -> dict | None:
-    """A tabela de referência (GUID -> arma/nome). É o 'Y' do comparativo."""
+    """The reference table (GUID -> weapon/name). It's the 'Y' of the comparison."""
     p = Path("guids.json")
     return json.loads(p.read_text(encoding="utf-8")) if p.exists() else None
 
 
 @st.cache_data(show_spinner=False)
 def estado_do_save() -> dict | None:
-    """O que você TEM: overclocks forjados + cosméticos, lidos do save atual."""
+    """What you HAVE: forged overclocks + cosmetics, read from the current save."""
     save = snapshot.find_save()
     if save is None or not Path(save).exists():
         return None
@@ -233,7 +233,7 @@ def estado_do_save() -> dict | None:
 
 
 def tabela_overclocks(ref: dict, forjados: set) -> pd.DataFrame:
-    """Por arma: quantos overclocks você tem, o total, e a lista do que falta."""
+    """Per weapon: how many overclocks you have, the total, and the missing list."""
     total, tem, faltam, classe = defaultdict(int), defaultdict(int), defaultdict(list), {}
     for guid, meta in ref["Weapons"].items():
         arma = meta["weapon"]
@@ -253,7 +253,7 @@ def tabela_overclocks(ref: dict, forjados: set) -> pd.DataFrame:
 
 
 def grafico_overclocks(df: pd.DataFrame) -> alt.Chart:
-    """Barra de progresso por arma: fundo = total, laranja = quantos você tem."""
+    """Progress bar per weapon: background = total, orange = how many you have."""
     altura = max(160, len(df) * 28)
     base = alt.Chart(df).encode(
         y=alt.Y("arma:N", sort=alt.EncodingSortField("pct", order="ascending"),
@@ -282,11 +282,11 @@ def grafico_overclocks(df: pd.DataFrame) -> alt.Chart:
 
 
 # ============================================================================
-# APLICAÇÃO
+# APPLICATION
 # ============================================================================
 st.set_page_config(page_title="DRG Stats Tracker", page_icon="🪨", layout="wide")
 
-# --- um tema escuro estilo caverna via CSS (Streamlit deixa injetar) ---
+# --- a dark, cave-style theme via CSS (Streamlit lets you inject it) ---
 st.markdown(f"""
 <style>
     .stApp {{ background: {COR_FUNDO}; }}
@@ -308,7 +308,7 @@ st.caption("Suas estatísticas de Deep Rock Galactic — extraídas do save, com
 
 conn = conectar()
 
-# --- Caso 1: banco ainda não existe / está vazio ---------------------------
+# --- Case 1: database doesn't exist yet / is empty -------------------------
 if conn is None or carregar_snapshots(conn).empty:
     st.warning("Ainda não há nenhuma **foto** no banco. Vamos tirar a primeira?")
     st.write("O botão abaixo lê o save do jogo e grava a primeira foto. "
@@ -322,7 +322,7 @@ if conn is None or carregar_snapshots(conn).empty:
 
 snaps = carregar_snapshots(conn)
 
-# --------------------------- BARRA LATERAL ---------------------------------
+# --------------------------- SIDEBAR ---------------------------------------
 with st.sidebar:
     st.header("⚙️ Controles")
 
@@ -337,10 +337,10 @@ with st.sidebar:
 
     st.divider()
 
-    # Escolher qual foto olhar (padrão = a mais recente).
+    # Choose which snapshot to view (default = the most recent one).
     opcoes = {
         f"#{r.id} — {fmt_quando(r.quando)}": int(r.id)
-        for r in snaps.iloc[::-1].itertuples()   # mais nova no topo
+        for r in snaps.iloc[::-1].itertuples()   # newest on top
     }
     escolha = st.selectbox("Foto (snapshot)", list(opcoes.keys()))
     snap_id = opcoes[escolha]
@@ -351,10 +351,10 @@ with st.sidebar:
     st.caption(f"Fotos no banco: **{len(snaps)}**")
     st.caption(f"Banco: `{Path(DB_PATH).resolve().name}`")
 
-# --------------------------- CABEÇALHO (métricas) --------------------------
+# --------------------------- HEADER (metrics) ------------------------------
 linha = snaps[snaps["id"] == snap_id].iloc[0]
 
-# se houver foto anterior, calculamos os "deltas" pra mostrar setinha de variação
+# if there's a previous snapshot, we compute the "deltas" to show a variation arrow
 anteriores = snaps[snaps["id"] < snap_id]
 tem_anterior = not anteriores.empty
 linha_ant = anteriores.iloc[-1] if tem_anterior else None
@@ -372,28 +372,28 @@ c1.metric("Rank da conta", fmt_num(linha["level"]), delta_de("level"))
 c2.metric("Total de kills", fmt_num(linha["total_kills"]), delta_de("total_kills"))
 c3.metric("Créditos", fmt_num(linha["credits"]), delta_de("credits"))
 c4.metric("Promoções", fmt_num(linha["times_retired"]), delta_de("times_retired"))
-# Missões CONCLUÍDAS (o que o jogo mostra, ex.: 445) != Partidas JOGADAS
-# (NumberOfGamesPlayed, ex.: 504, inclui abandonadas/falhadas). São stats distintas.
+# Missions COMPLETED (what the game shows, e.g. 445) != Games PLAYED
+# (NumberOfGamesPlayed, e.g. 504, includes aborted/failed ones). Distinct stats.
 c5.metric("Missões concluídas", fmt_num(linha["missions_completed"]), delta_de("missions_completed"))
 c6.metric("Partidas jogadas", fmt_num(linha["games_played"]), delta_de("games_played"))
 c7.metric("Tempo de jogo", fmt_horas(linha["playtime_seconds"]))
 
 st.divider()
 
-# --------------------------- ABAS ------------------------------------------
+# --------------------------- TABS ------------------------------------------
 aba_especies, aba_tempo, aba_ocs, aba_desde, aba_tabela = st.tabs(
     ["🐛 Por espécie", "📈 Evolução", "⚙️ Overclocks", "🆕 Desde a última foto", "🗂️ Tabela"]
 )
 
 kills = carregar_kills(conn, snap_id)
 
-# ---- Aba 1: ranking por espécie ----
+# ---- Tab 1: ranking by species ----
 with aba_especies:
     st.markdown(f"**Top {min(top_n, len(kills))} espécies mais mortas** "
                 f"(de {len(kills)} no total)")
     st.altair_chart(grafico_barras_especies(kills, top_n), width='stretch')
 
-# ---- Aba 2: evolução no tempo ----
+# ---- Tab 2: progress over time ----
 with aba_tempo:
     if len(snaps) < 2:
         st.info("Só existe **uma** foto por enquanto. Tire mais fotos (com o botão "
@@ -419,7 +419,7 @@ with aba_tempo:
             st.altair_chart(grafico_evolucao(snaps, "playtime_seconds", "Segundos", "#e87ba4"),
                             width='stretch')
 
-# ---- Aba 3: overclocks (e cosméticos) ----
+# ---- Tab 3: overclocks (and cosmetics) ----
 with aba_ocs:
     if st.button("🔄 Reler do save", help="Atualiza a leitura de overclocks direto do save"):
         estado_do_save.clear()
@@ -451,19 +451,19 @@ with aba_ocs:
                                           "rotulo": "Tem/Total", "faltando": "Faltando"}))
             st.dataframe(faltantes.reset_index(drop=True), width='stretch', hide_index=True)
 
-        # --- cosméticos: honesto sobre a incerteza (ver seção 4.2/5 do CLAUDE.md) ---
+        # --- cosmetics: honest about the uncertainty (see section 4.2/5 of CLAUDE.md) ---
         st.divider()
         st.markdown("**Cosméticos** — estimativa ⚠️")
         st.caption("O desbloqueio de cosméticos no DRG vem de várias fontes; esta contagem "
                    "pode ficar ABAIXO do real. Trate como estimativa até a gente mapear melhor.")
-        possui = estado["vanity"] | estado["forjados"]   # vanity + os forjados de matrix core
+        possui = estado["vanity"] | estado["forjados"]   # vanity + the matrix-core forged ones
         cos = [{"Categoria": cat.replace("Cosmetic - ", ""),
                 "Tem": sum(1 for g in ref[cat] if g.upper() in possui), "Total": len(ref[cat])}
                for cat in ["Cosmetic - Headwear", "Cosmetic - Moustache", "Cosmetic - Beard",
                            "Cosmetic - Sideburns", "Victory Moves", "Weapon Skins"] if cat in ref]
         st.dataframe(pd.DataFrame(cos), width='stretch', hide_index=True)
 
-# ---- Aba 4: o que cresceu desde a foto anterior ----
+# ---- Tab 4: what grew since the previous snapshot ----
 with aba_desde:
     if not tem_anterior:
         st.info("Esta é a foto mais antiga (ou a única). Não há uma anterior pra comparar. "
@@ -483,7 +483,7 @@ with aba_desde:
             )
             st.altair_chart(g, width='stretch')
 
-# ---- Aba 4: tabela crua (com busca) ----
+# ---- Tab 5: raw table (with search) ----
 with aba_tabela:
     busca = st.text_input("🔎 Buscar espécie", placeholder="ex.: Grunt, Mactera...")
     tabela = kills[["especie", "count"]].rename(columns={"especie": "Espécie", "count": "Kills"})
@@ -495,7 +495,7 @@ with aba_tabela:
         tabela, width='stretch', height=560,
         column_config={"Kills": st.column_config.NumberColumn(format="%d")},
     )
-    # botão pra exportar (bônus útil pra portfólio)
+    # export button (a useful portfolio bonus)
     st.download_button(
         "⬇️ Baixar como CSV",
         tabela.to_csv(index=False).encode("utf-8"),

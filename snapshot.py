@@ -1,23 +1,22 @@
 #!/usr/bin/env python3
 """
-snapshot.py — tira uma "foto" das suas estatísticas do Deep Rock Galactic e
-guarda num banco SQLite local. Rode de tempos em tempos e você acumula um
-HISTÓRICO — dá pra ver quantos grunts você matou essa semana, evolução de
-créditos, tempo de jogo, etc.
+snapshot.py — takes a "snapshot" of your Deep Rock Galactic stats and stores it in
+a local SQLite database. Run it now and then and you build up a HISTORY — you can
+see how many grunts you killed this week, credit progression, playtime, etc.
 
-Feito pra funcionar até pra quem acabou de instalar:
-  - acha o save sozinho nos caminhos padrão do Steam (Windows e Linux);
-  - cria o banco e as tabelas na primeira execução (nada pra configurar);
-  - não duplica: se nada mudou desde a última foto, não grava de novo;
-  - se o enemy_names.json existir, usa os nomes; se não, guarda pelo GUID mesmo.
+Built to work even for someone who just installed it:
+  - finds the save on its own in the standard Steam paths (Windows and Linux);
+  - creates the database and tables on first run (nothing to configure);
+  - no duplicates: if nothing changed since the last snapshot, it doesn't write again;
+  - if all_drg_enemies.json exists, it uses the names; if not, it stores by GUID.
 
-Uso:
-    python snapshot.py                  # acha o save e tira uma foto
-    python snapshot.py "/caminho.sav"   # aponta o save manualmente
-    python snapshot.py --loop 30        # tira uma foto a cada 30 minutos
-    DRG_SAVE=/caminho.sav python snapshot.py   # via variável de ambiente
+Usage:
+    python snapshot.py                  # find the save and take a snapshot
+    python snapshot.py "/path.sav"      # point to the save manually
+    python snapshot.py --loop 30        # take a snapshot every 30 minutes
+    DRG_SAVE=/path.sav python snapshot.py   # via environment variable
 
-Precisa do arquivo drg_save_parser.py na mesma pasta.
+Requires drg_save_parser.py in the same folder.
 """
 
 import sys
@@ -32,16 +31,16 @@ from datetime import datetime, timezone
 
 import drg_save_parser as drg
 
-# ------------------------------- configuração -------------------------------
+# ------------------------------- configuration ------------------------------
 DB_PATH = "drg_stats.db"
-NAMES_PATH = "all_drg_enemies.json"        # opcional; se não existir, tudo bem
+NAMES_PATH = "all_drg_enemies.json"        # optional; if missing, that's fine
 
-# Caminhos onde o save costuma estar. Aceita curingas (*) e variáveis do SO.
+# Paths where the save usually lives. Accepts wildcards (*) and OS variables.
 SAVE_GLOBS = [
     # Windows / Steam
     r"%ProgramFiles(x86)%\Steam\steamapps\common\Deep Rock Galactic\FSD\Saved\SaveGames\*_Player.sav",
     r"%ProgramFiles%\Steam\steamapps\common\Deep Rock Galactic\FSD\Saved\SaveGames\*_Player.sav",
-    # Linux / Steam (nativo, e Flatpak)
+    # Linux / Steam (native, and Flatpak)
     "~/.steam/steam/steamapps/common/Deep Rock Galactic/FSD/Saved/SaveGames/*_Player.sav",
     "~/.local/share/Steam/steamapps/common/Deep Rock Galactic/FSD/Saved/SaveGames/*_Player.sav",
     "~/.var/app/com.valvesoftware.Steam/.local/share/Steam/steamapps/common/Deep Rock Galactic/FSD/Saved/SaveGames/*_Player.sav",
@@ -49,13 +48,13 @@ SAVE_GLOBS = [
 # ----------------------------------------------------------------------------
 
 
-# O schema do banco. "IF NOT EXISTS" deixa isso IDEMPOTENTE: rodar mil vezes é
-# igual a rodar uma. É o que permite um usuário novo só executar o script.
+# The database schema. "IF NOT EXISTS" makes this IDEMPOTENT: running it a thousand
+# times equals running it once. That's what lets a new user just run the script.
 SCHEMA_SQL = """
 CREATE TABLE IF NOT EXISTS snapshots (
     id               INTEGER PRIMARY KEY AUTOINCREMENT,
-    taken_at         TEXT    NOT NULL,      -- data/hora ISO 8601 (UTC)
-    save_file        TEXT,                  -- de qual arquivo veio
+    taken_at         TEXT    NOT NULL,      -- ISO 8601 date/time (UTC)
+    save_file        TEXT,                  -- which file it came from
     level            INTEGER,
     credits          INTEGER,
     perk_points      INTEGER,
@@ -66,9 +65,9 @@ CREATE TABLE IF NOT EXISTS snapshots (
     total_kills      INTEGER
 );
 
--- Uma linha por espécie POR snapshot. Guardamos o GUID (chave estável que
--- SEMPRE existe) e o nome só como enriquecimento (pode ser NULL). Assim, mesmo
--- inimigo sem nome mapeado é rastreado, e dá pra preencher o nome depois.
+-- One row per species PER snapshot. We store the GUID (the stable key that ALWAYS
+-- exists) and the name only as enrichment (may be NULL). That way even an enemy
+-- with no mapped name is tracked, and the name can be filled in later.
 CREATE TABLE IF NOT EXISTS kills (
     snapshot_id  INTEGER NOT NULL,
     guid         TEXT    NOT NULL,
@@ -83,7 +82,7 @@ CREATE INDEX IF NOT EXISTS idx_snapshots_taken ON snapshots(taken_at);
 """
 
 
-# Trecho do caminho do save DENTRO de qualquer biblioteca Steam.
+# The save's path fragment INSIDE any Steam library.
 SAVE_SUBPATH = os.path.join(
     "steamapps", "common", "Deep Rock Galactic",
     "FSD", "Saved", "SaveGames", "*_Player.sav",
@@ -92,17 +91,17 @@ SAVE_SUBPATH = os.path.join(
 
 def _steam_libraries() -> list:
     """
-    Descobre as pastas-raiz de TODAS as bibliotecas Steam — inclusive as em outros
-    drives (D:, E:...). A Steam lista isso no `libraryfolders.vdf`. Sem esse passo,
-    quem instalou o DRG fora do C: teria que apontar o save na mão.
+    Discover the root folders of ALL Steam libraries — including ones on other drives
+    (D:, E:...). Steam lists these in `libraryfolders.vdf`. Without this step, someone
+    who installed DRG outside C: would have to point to the save by hand.
 
-    Estratégia (só stdlib):
-      1) acha onde a Steam está instalada (registro no Windows; caminhos padrão no Linux);
-      2) lê o libraryfolders.vdf de lá e extrai cada "path" (formato KeyValues da Valve).
+    Strategy (stdlib only):
+      1) find where Steam is installed (registry on Windows; default paths on Linux);
+      2) read the libraryfolders.vdf there and extract each "path" (Valve KeyValues format).
     """
     bases = []
     if sys.platform == "win32":
-        try:                                    # o caminho REAL da Steam vem do registro
+        try:                                    # the REAL Steam path comes from the registry
             import winreg
             tentativas = [
                 (winreg.HKEY_CURRENT_USER,  r"Software\Valve\Steam",            "SteamPath"),
@@ -133,38 +132,38 @@ def _steam_libraries() -> list:
     for base in bases:
         if not base:
             continue
-        add(base)                               # a própria pasta da Steam é uma biblioteca
+        add(base)                               # the Steam folder itself is a library
         for vdf in (Path(base) / "steamapps" / "libraryfolders.vdf",
                     Path(base) / "config" / "libraryfolders.vdf"):
             try:
                 texto = vdf.read_text(encoding="utf-8", errors="ignore")
             except OSError:
                 continue
-            # extrai cada:  "path"   "D:\\SteamLibrary"   -> tira o escape \\ -> \
+            # extract each:  "path"   "D:\\SteamLibrary"   -> undo the \\ escape -> \
             for m in re.finditer(r'"path"\s*"([^"]+)"', texto):
                 add(m.group(1).replace("\\\\", "\\"))
     return roots
 
 
 def find_save(explicit: str | None = None) -> Path | None:
-    """Descobre o caminho do save: argumento > variável de ambiente > busca automática."""
+    """Find the save path: argument > environment variable > automatic search."""
     if explicit:
         return Path(explicit)
     if os.environ.get("DRG_SAVE"):
         return Path(os.environ["DRG_SAVE"])
 
     achados = []
-    # 1) globs estáticos (rápidos; cobrem a instalação padrão no C:)
+    # 1) static globs (fast; cover the default C: install)
     for padrao in SAVE_GLOBS:
         achados.extend(glob.glob(os.path.expanduser(os.path.expandvars(padrao))))
-    # 2) bibliotecas Steam em QUALQUER drive (via libraryfolders.vdf)
+    # 2) Steam libraries on ANY drive (via libraryfolders.vdf)
     for root in _steam_libraries():
         achados.extend(glob.glob(str(Path(root) / SAVE_SUBPATH)))
 
     achados = [Path(a) for a in achados if a.endswith("_Player.sav")]
     if not achados:
         return None
-    # se houver mais de um perfil/instalação, pega o modificado mais recentemente
+    # if there's more than one profile/install, pick the most recently modified
     return max(achados, key=lambda p: p.stat().st_mtime)
 
 
@@ -177,53 +176,54 @@ def load_names() -> dict:
 
 def conectar(db_path: str) -> sqlite3.Connection:
     conn = sqlite3.connect(db_path)
-    # PEGADINHA DO SQLITE: ele NÃO respeita FOREIGN KEY por padrão. Tem que ligar
-    # em toda conexão, senão o ON DELETE CASCADE simplesmente não acontece.
+    # SQLITE GOTCHA: it does NOT enforce FOREIGN KEY by default. You have to enable it
+    # on every connection, otherwise the ON DELETE CASCADE simply doesn't happen.
     conn.execute("PRAGMA foreign_keys = ON;")
-    conn.executescript(SCHEMA_SQL)     # cria tabelas se não existirem
-    _migrar(conn)                      # ajusta bancos ANTIGOS (colunas novas)
+    conn.executescript(SCHEMA_SQL)     # create tables if they don't exist
+    _migrar(conn)                      # adjust OLD databases (new columns)
     return conn
 
 
 def _migrar(conn: sqlite3.Connection):
     """
-    Migração leve pra bancos criados antes de uma coluna nova existir.
-    O 'CREATE TABLE IF NOT EXISTS' NÃO altera tabela que já existe — então uma
-    coluna adicionada depois nunca apareceria num banco velho. Aqui a gente checa
-    as colunas atuais (via PRAGMA) e só roda o ALTER TABLE do que estiver faltando.
-    É idempotente: num banco já atualizado, não faz nada.
+    Light migration for databases created before a new column existed.
+    'CREATE TABLE IF NOT EXISTS' does NOT alter a table that already exists — so a
+    column added later would never show up in an old database. Here we check the
+    current columns (via PRAGMA) and only run the ALTER TABLE for what's missing.
+    It's idempotent: on an already-updated database it does nothing.
     """
     existentes = {row[1] for row in conn.execute("PRAGMA table_info(snapshots)")}
     novas = {"missions_completed": "INTEGER"}
     for coluna, tipo in novas.items():
         if coluna not in existentes:
-            # OBS: aqui a f-string é SEGURA e necessária. A regra "nunca f-string em SQL"
-            # vale pra VALORES vindos de fora (use '?'). Mas '?' não funciona pra NOMES de
-            # coluna/tipo (identificadores), e estes vêm de um dict fixo no código — não de
-            # input do usuário. Logo, sem risco de injection.
+            # NOTE: the f-string here is SAFE and necessary. The "never f-string SQL"
+            # rule is for VALUES coming from outside (use '?'). But '?' doesn't work for
+            # column/type NAMES (identifiers), and these come from a fixed dict in the
+            # code — not from user input. So no injection risk.
             conn.execute(f"ALTER TABLE snapshots ADD COLUMN {coluna} {tipo}")
     conn.commit()
 
 
 def _data_local(iso_utc: str):
-    """Converte um taken_at (ISO em UTC) pra a DATA no fuso local do PC."""
+    """Convert a taken_at (ISO in UTC) into the DATE in the PC's local timezone."""
     return datetime.fromisoformat(iso_utc).astimezone().date()
 
 
 def tirar_snapshot(conn: sqlite3.Connection, save_path: Path, names: dict, forcar=False):
     """
-    Lê o save e grava a foto do dia. Retorna o id do snapshot, ou None se nada mudou.
+    Read the save and store the day's snapshot. Returns the snapshot id, or None if
+    nothing changed.
 
-    REGRA "UMA FOTO POR DIA": guardar uma foto a cada missão encheria o banco (30
-    missões = 30 linhas) e deixaria o comparativo poluído. Então:
-      - se a última foto é de HOJE (data local) -> ATUALIZA ela pro estado mais recente;
-      - se é de outro dia (ou não há nenhuma)    -> cria uma foto nova.
-    Assim cada dia guarda o estado do FIM do dia, o banco fica leve (1 linha/dia) e o
-    delta de um dia pro outro = exatamente "o que você fez naquele dia".
+    "ONE SNAPSHOT PER DAY" RULE: storing one per mission would flood the database (30
+    missions = 30 rows) and pollute the comparison. So:
+      - if the last snapshot is from TODAY (local date) -> UPDATE it to the latest state;
+      - if it's from another day (or there's none)       -> create a new snapshot.
+    That way each day holds the END-of-day state, the database stays light (1 row/day),
+    and the day-to-day delta = exactly "what you did that day".
     """
     s = drg.parse_save(str(save_path), enemy_names=names)
 
-    # DEDUP: se a última foto tem os mesmos kills e tempo, não grava lixo repetido.
+    # DEDUP: if the last snapshot has the same kills and time, don't write repeated junk.
     ultimo = conn.execute(
         "SELECT id, total_kills, playtime_seconds, taken_at "
         "FROM snapshots ORDER BY id DESC LIMIT 1"
@@ -234,7 +234,7 @@ def tirar_snapshot(conn: sqlite3.Connection, save_path: Path, names: dict, forca
         if mesmo_kills and mesmo_tempo:
             return None
 
-    # Sempre use consultas PARAMETRIZADAS (os '?'). Nunca monte SQL com f-string.
+    # Always use PARAMETERIZED queries (the '?'). Never build SQL with f-strings.
     agora = datetime.now(timezone.utc).isoformat(timespec="seconds")
     valores = (agora, save_path.name, s["level"], s["credits"], s["perk_points"],
                s["games_played"], s["missions_completed"], s["times_retired"],
@@ -242,7 +242,7 @@ def tirar_snapshot(conn: sqlite3.Connection, save_path: Path, names: dict, forca
 
     hoje = datetime.now().astimezone().date()
     if ultimo and _data_local(ultimo[3]) == hoje:
-        # já existe a foto de HOJE -> atualiza ela (e troca os kills dela)
+        # TODAY's snapshot already exists -> update it (and swap its kills)
         snap_id = ultimo[0]
         conn.execute(
             """UPDATE snapshots SET
@@ -254,7 +254,7 @@ def tirar_snapshot(conn: sqlite3.Connection, save_path: Path, names: dict, forca
         )
         conn.execute("DELETE FROM kills WHERE snapshot_id=?", (snap_id,))
     else:
-        # primeiro registro do dia (ou banco vazio) -> foto nova
+        # first record of the day (or empty database) -> new snapshot
         cur = conn.execute(
             """INSERT INTO snapshots
                (taken_at, save_file, level, credits, perk_points,
@@ -270,16 +270,16 @@ def tirar_snapshot(conn: sqlite3.Connection, save_path: Path, names: dict, forca
         "INSERT INTO kills (snapshot_id, guid, name, count) VALUES (?,?,?,?)",
         linhas,
     )
-    conn.commit()          # tudo junto: ou grava snapshot + kills, ou nada
+    conn.commit()          # all together: either snapshot + kills are stored, or nothing
     return snap_id
 
 
 def mostrar_deltas(conn: sqlite3.Connection):
-    """Mostra o que mais cresceu desde a foto anterior — o objetivo do histórico.
+    """Show what grew the most since the previous snapshot — the point of the history.
 
-    Repare: o 'quanto cresceu' é CALCULADO na hora, com um JOIN entre as duas
-    últimas fotos. A gente não guarda o delta no banco; guarda os fatos (contagens)
-    e deriva o resto na consulta.
+    Note: the 'how much it grew' is COMPUTED on the fly, with a JOIN between the two
+    latest snapshots. We don't store the delta in the database; we store the facts
+    (the counts) and derive the rest in the query.
     """
     ids = conn.execute(
         "SELECT id FROM snapshots ORDER BY id DESC LIMIT 2"

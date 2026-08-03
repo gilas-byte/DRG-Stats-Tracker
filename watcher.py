@@ -1,44 +1,45 @@
 #!/usr/bin/env python3
 """
-watcher.py — o "vigia" do save do Deep Rock Galactic.
+watcher.py — the Deep Rock Galactic save "watcher".
 
-A ideia (e o PORQUÊ dela)
--------------------------
-Você não quer ficar rodando o snapshot.py na mão. Então este script fica de olho
-no arquivo de save e tira uma foto SOZINHO nos momentos certos:
+The idea (and the WHY behind it)
+--------------------------------
+You don't want to keep running snapshot.py by hand. So this script keeps an eye on
+the save file and takes a snapshot ON ITS OWN at the right moments:
 
-  1. quando o jogo ABRE           -> foto inicial (baseline da sessão);
-  2. quando o save é REESCRITO    -> o DRG regrava o .sav ao terminar uma missão
-     (voltar pro Space Rig), então a data de modificação do arquivo muda -> foto;
-  3. quando o jogo FECHA          -> foto final e o vigia encerra sozinho.
+  1. when the game OPENS         -> initial snapshot (the session baseline);
+  2. when the save is REWRITTEN  -> DRG rewrites the .sav when you finish a mission
+     (back to the Space Rig), so the file's modified date changes -> snapshot;
+  3. when the game CLOSES        -> final snapshot and the watcher exits on its own.
 
-Como isso vira "automático de verdade": coloca-se este vigia nas LAUNCH OPTIONS
-da Steam, na frente do jogo. Assim ele sobe junto com o DRG e morre junto:
+How this becomes "truly automatic": you put this watcher in Steam's LAUNCH OPTIONS,
+in front of the game. That way it starts alongside DRG and dies with it:
 
     cmd /c start "" /min pythonw "C:\\...\\watcher.py" & %command%
 
-O `%command%` é o próprio jogo (a Steam troca por ele). O `pythonw` roda sem
-janela. Resultado: o jogador só clica em Jogar; o histórico se enche sozinho.
+The `%command%` is the game itself (Steam substitutes it). `pythonw` runs with no
+window. Result: the player just clicks Play; the history fills up on its own.
 
-Por que NÃO pesa o banco: o snapshot.tirar_snapshot() já tem DEDUP — se nada
-mudou desde a última foto (mesmos kills e mesmo tempo), ele NÃO grava. Então
-mesmo o save mudando toda hora, só entra linha nova quando algo de fato mudou.
+Why it does NOT bloat the database: snapshot.tirar_snapshot() already has DEDUP — if
+nothing changed since the last snapshot (same kills and same time), it does NOT write.
+So even though the save changes all the time, a new row only appears when something
+actually changed.
 
-Detecção de "jogo aberto/fechado"
----------------------------------
-No Windows, a gente pergunta ao SO se o processo do DRG (FSD-Win64-Shipping.exe)
-está rodando, via `tasklist`. No Linux, tenta `pgrep`. Se não der pra detectar o
-processo (SO estranho), o vigia cai no "modo arquivo": só observa o .sav e roda
-até você fechar com Ctrl+C (ou até acabar o --minutos).
+Detecting "game open/closed"
+----------------------------
+On Windows, we ask the OS whether the DRG process (FSD-Win64-Shipping.exe) is running,
+via `tasklist`. On Linux, we try `pgrep`. If the process can't be detected (odd OS),
+the watcher falls back to "file mode": it just watches the .sav and runs until you
+close it with Ctrl+C (or until --minutos runs out).
 
-Uso:
-    python watcher.py                 # acha o save, espera o jogo, vigia
-    python watcher.py "/caminho.sav"  # aponta o save manualmente
-    python watcher.py --intervalo 5   # checa a cada 5 segundos (padrão: 8)
-    python watcher.py --sem-processo  # ignora detecção de jogo (roda até Ctrl+C)
-    python watcher.py --minutos 60    # no modo arquivo, para depois de 60 min
+Usage:
+    python watcher.py                 # find the save, wait for the game, watch
+    python watcher.py "/path.sav"     # point to the save manually
+    python watcher.py --intervalo 5   # check every 5 seconds (default: 8)
+    python watcher.py --sem-processo  # ignore game detection (run until Ctrl+C)
+    python watcher.py --minutos 60    # in file mode, stop after 60 min
 
-Depende de snapshot.py e drg_save_parser.py na mesma pasta. Só stdlib.
+Requires snapshot.py and drg_save_parser.py in the same folder. Stdlib only.
 """
 
 import sys
@@ -49,35 +50,35 @@ import subprocess
 from pathlib import Path
 from datetime import datetime
 
-import snapshot   # reaproveita find_save / load_names / conectar / tirar_snapshot
+import snapshot   # reuses find_save / load_names / conectar / tirar_snapshot
 
-# ------------------------------- configuração -------------------------------
-# Nome do processo do DRG no Windows. É por ele que a gente sabe se o jogo está
-# aberto. (No Linux via Proton o nome costuma ser o mesmo, rodando sob o wine.)
+# ------------------------------- configuration ------------------------------
+# The DRG process name on Windows. It's how we know whether the game is open.
+# (On Linux via Proton the name is usually the same, running under wine.)
 GAME_PROCESS = "FSD-Win64-Shipping.exe"
 
-INTERVALO_PADRAO = 8      # de quantos em quantos segundos a gente checa
-ESPERA_ESCRITA   = 4      # após ver o save mudar, espera o DRG TERMINAR de gravar
-ESPERA_JOGO      = 180    # quanto tempo esperar o jogo aparecer antes de desistir
+INTERVALO_PADRAO = 8      # how many seconds between checks
+ESPERA_ESCRITA   = 4      # after seeing the save change, wait for DRG to FINISH writing
+ESPERA_JOGO      = 180    # how long to wait for the game to appear before giving up
 
-LOG_PATH = "watcher.log"  # histórico do vigia (ao lado do banco)
+LOG_PATH = "watcher.log"  # the watcher's history (next to the database)
 
-# PEGADINHA DO WINDOWS: quando o vigia roda via pythonw (sem console), cada
-# chamada ao `tasklist` abre uma JANELINHA de console que PISCA e ROUBA O FOCO
-# da janela ativa. A flag CREATE_NO_WINDOW (0x08000000) manda criar o processo
-# filho sem janela nenhuma, matando o pisca-pisca. Só existe no Windows.
+# WINDOWS GOTCHA: when the watcher runs via pythonw (no console), each call to
+# `tasklist` opens a little console WINDOW that FLASHES and STEALS FOCUS from the
+# active window. The CREATE_NO_WINDOW flag (0x08000000) tells it to create the child
+# process with no window at all, killing the flicker. Windows only.
 _SEM_JANELA = 0x08000000 if sys.platform == "win32" else 0
 
 
-# ------------------------------- utilidades ---------------------------------
+# ------------------------------- utilities ----------------------------------
 def log(msg: str):
     """
-    Registra uma linha com hora. Escreve SEMPRE num arquivo UTF-8 (assim emoji e
-    acento nunca quebram) e, SÓ SE der, também no console.
+    Record a timestamped line. ALWAYS writes to a UTF-8 file (so emoji and accents
+    never break) and, ONLY IF possible, also to the console.
 
-    Por que tanto cuidado: o vigia roda via `pythonw` (sem janela), onde
-    `sys.stdout` pode ser None; e no console do Windows (cp1252) um emoji dispara
-    UnicodeEncodeError. Logar em arquivo resolve os dois de uma vez.
+    Why so much care: the watcher runs via `pythonw` (no window), where `sys.stdout`
+    can be None; and on the Windows console (cp1252) an emoji throws a
+    UnicodeEncodeError. Logging to a file solves both at once.
     """
     linha = f"[{datetime.now():%Y-%m-%d %H:%M:%S}] {msg}"
     try:
@@ -85,43 +86,43 @@ def log(msg: str):
             f.write(linha + "\n")
     except OSError:
         pass
-    if sys.stdout is not None:                       # None sob pythonw
+    if sys.stdout is not None:                       # None under pythonw
         try:
             print(linha, flush=True)
         except (UnicodeEncodeError, ValueError, OSError):
-            pass                                     # console não deu conta; tudo bem
+            pass                                     # console couldn't handle it; that's fine
 
 
 def jogo_rodando():
     """
-    Devolve True/False se o processo do DRG está ativo, ou None se não dá pra
-    saber neste SO (aí o chamador cai no modo arquivo).
+    Return True/False whether the DRG process is active, or None if we can't tell on
+    this OS (then the caller falls back to file mode).
     """
     try:
         if sys.platform == "win32":
-            # /FI filtra pelo nome; se achar, o nome aparece na saída.
+            # /FI filters by name; if found, the name shows up in the output.
             saida = subprocess.run(
                 ["tasklist", "/FI", f"IMAGENAME eq {GAME_PROCESS}"],
                 capture_output=True, text=True, timeout=10,
-                creationflags=_SEM_JANELA,      # <- sem janelinha piscando
+                creationflags=_SEM_JANELA,      # <- no flashing little window
             ).stdout
             return GAME_PROCESS.lower() in saida.lower()
         else:
-            # Linux/macOS: pgrep devolve código 0 se achou algum processo.
+            # Linux/macOS: pgrep returns code 0 if it found any process.
             r = subprocess.run(
                 ["pgrep", "-f", GAME_PROCESS],
                 capture_output=True, timeout=10,
             )
             return r.returncode == 0
     except (subprocess.SubprocessError, FileNotFoundError, OSError):
-        return None      # sem ferramenta de detecção -> "não sei"
+        return None      # no detection tool -> "don't know"
 
 
 def tirar_foto(save_path: Path, names: dict, motivo: str):
     """
-    Abre o banco, tenta gravar uma foto e fecha. Abrir/fechar a cada foto (em vez
-    de manter a conexão aberta) evita segurar o arquivo do banco, deixando o
-    dashboard ler numa boa em paralelo.
+    Open the database, try to store a snapshot, and close it. Opening/closing per
+    snapshot (instead of keeping the connection open) avoids holding the database
+    file, so the dashboard can read it just fine in parallel.
     """
     conn = snapshot.conectar(snapshot.DB_PATH)
     try:
@@ -135,12 +136,12 @@ def tirar_foto(save_path: Path, names: dict, motivo: str):
     return snap_id
 
 
-# ------------------------------- loop principal -----------------------------
+# ------------------------------- main loop -----------------------------------
 def vigiar(save_path: Path, names: dict, intervalo: int,
            usar_processo: bool, limite_minutos: int | None):
     log(f"Vigia iniciado. Save: {save_path}")
 
-    # 1) Foto de abertura: o save já reflete a última sessão; é a nossa baseline.
+    # 1) Opening snapshot: the save already reflects the last session; it's our baseline.
     tirar_foto(save_path, names, "abertura")
 
     try:
@@ -148,7 +149,7 @@ def vigiar(save_path: Path, names: dict, intervalo: int,
     except OSError:
         ultimo_mtime = 0
 
-    # Se o SO não sabe detectar o processo, força o modo arquivo.
+    # If the OS can't detect the process, force file mode.
     if usar_processo and jogo_rodando() is None:
         log("Não consigo detectar o processo do jogo neste SO — indo pro modo "
             "arquivo (encerre com Ctrl+C).")
@@ -161,14 +162,14 @@ def vigiar(save_path: Path, names: dict, intervalo: int,
     while True:
         time.sleep(intervalo)
 
-        # --- (A) o save mudou? (fim de missão, compra na forja, etc.) ---
+        # --- (A) did the save change? (mission end, forge purchase, etc.) ---
         try:
             mtime = save_path.stat().st_mtime
         except OSError:
-            mtime = ultimo_mtime          # arquivo sumiu por um instante; ignora
+            mtime = ultimo_mtime          # file vanished for a moment; ignore
         if mtime != ultimo_mtime:
-            # O DRG pode ainda estar ESCREVENDO o arquivo. Espera assentar e
-            # relê o mtime, pra não ler um save pela metade.
+            # DRG might still be WRITING the file. Wait for it to settle and re-read
+            # the mtime, so we don't read a half-written save.
             time.sleep(ESPERA_ESCRITA)
             try:
                 ultimo_mtime = save_path.stat().st_mtime
@@ -176,7 +177,7 @@ def vigiar(save_path: Path, names: dict, intervalo: int,
                 ultimo_mtime = mtime
             tirar_foto(save_path, names, "save alterado")
 
-        # --- (B) lógica de processo: sobe junto, morre junto ---
+        # --- (B) process logic: starts with the game, dies with it ---
         if usar_processo:
             rodando = jogo_rodando()
             if rodando:
@@ -187,13 +188,13 @@ def vigiar(save_path: Path, names: dict, intervalo: int,
                     log("Jogo fechado — tirando a foto final.")
                     tirar_foto(save_path, names, "fechamento")
                     break
-                # jogo ainda não abriu: dá um tempo pra Steam/DRG carregarem
+                # game hasn't opened yet: give Steam/DRG some time to load
                 esperando_jogo += intervalo
                 if esperando_jogo >= ESPERA_JOGO:
                     log("O jogo não apareceu a tempo — encerrando o vigia.")
                     break
 
-        # --- (C) modo arquivo: para no limite de minutos, se houver ---
+        # --- (C) file mode: stop at the minute limit, if any ---
         elif limite_minutos is not None:
             if (time.time() - inicio) >= limite_minutos * 60:
                 log(f"Limite de {limite_minutos} min atingido — encerrando.")
@@ -213,9 +214,9 @@ def main():
                    help="no modo arquivo, encerra depois de N minutos")
     args = p.parse_args()
 
-    # A Steam pode lançar o vigia com o diretório de trabalho do JOGO, não o
-    # nosso. Ancorar na pasta do próprio script garante que 'drg_stats.db',
-    # 'all_drg_enemies.json' e 'watcher.log' caiam no lugar certo.
+    # Steam may launch the watcher with the GAME's working directory, not ours.
+    # Anchoring to the script's own folder ensures 'drg_stats.db',
+    # 'all_drg_enemies.json' and 'watcher.log' land in the right place.
     os.chdir(Path(__file__).resolve().parent)
 
     save_path = snapshot.find_save(args.save)
