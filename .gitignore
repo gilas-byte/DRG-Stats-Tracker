@@ -18,8 +18,8 @@ env/
 *.egg-info/
 .pytest_cache/
 
-# ---- Ferramentas de terceiros baixadas só pra referência ----
-mint-master/
+# ---- Pasta pessoal de estudos ----
+estudo/
 
 # ---- Screenshots de trabalho / temporários ----
 imagens/
