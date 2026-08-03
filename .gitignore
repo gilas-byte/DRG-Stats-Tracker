@@ -31,5 +31,4 @@ imagens/
 Thumbs.db
 
 # ---- .md's ----
-*.md
-!README.md
+CLAUDE.md
