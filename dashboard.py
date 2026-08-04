@@ -6,8 +6,11 @@ Reads the drg_stats.db database (the "snapshots" that snapshot.py has been stori
 and draws everything nicely in an interactive site: kills-per-species ranking,
 progress over time, credits, playtime and "how much you killed since the last snapshot".
 
-Built for non-devs: it has a "📸 Atualizar agora" button that reads the save and stores
+Built for non-devs: it has a "📸 Update now" button that reads the save and stores
 a new snapshot with no terminal needed. Just open it and click.
+
+The whole UI is bilingual (English / Português) via a language picker in the sidebar;
+English is the default. All on-screen text lives in the TEXTS dictionary below.
 
 How to open (the easy way):
     -> DOUBLE-CLICK "abrir_dashboard.bat"
@@ -33,7 +36,7 @@ import altair as alt
 import streamlit as st
 
 # snapshot.py is part of the same project: we reuse the logic of finding the save and
-# storing the snapshot, so the "Atualizar agora" button works without a terminal.
+# storing the snapshot, so the "Update now" button works without a terminal.
 import snapshot
 import drg_save_parser as drg   # to read overclocks/cosmetics straight from the current save
 
@@ -54,6 +57,254 @@ COR_GRID       = "#332e29"   # subtle grid lines
 
 # Single-hue sequential ramp (light -> dark) for the magnitude bars.
 RAMP_LARANJA = ["#f6b98f", "#f19a63", "#eb6834", "#c14f22", "#8f3a18"]
+
+
+# ----------------------------------------------------------------------------
+# TRANSLATIONS (all on-screen text). English default; Português second.
+# Usage: T("key")  ->  the string in the currently selected language.
+# `lang` and `L` (the current-language dict) are set in the APP body, before any
+# UI is drawn — the chart/formatter functions read them as globals at call time.
+# ----------------------------------------------------------------------------
+LANGS = {"English": "en", "Português": "pt"}   # label -> code
+
+TEXTS = {
+    "en": {
+        "caption": "Your Deep Rock Galactic stats — pulled from the save, with history. "
+                   "Rock and Stone!",
+        # empty database
+        "empty_warn": "There are no **snapshots** in the database yet. Take the first one?",
+        "empty_body": "The button below reads the game save and stores the first snapshot. "
+                      "After that the charts show up on their own.",
+        "empty_btn": "📸 Take the first snapshot",
+        "reading_save": "Reading the save...",
+        # atualizar_agora messages
+        "msg_no_save": "❌ Couldn't find the save automatically. Run snapshot.py once, "
+                       "pointing it at the path.",
+        "msg_nothing": "ℹ️ Nothing changed since the last snapshot — none stored.",
+        "msg_ok": "✅ New snapshot stored (snapshot #{id})! Rock and Stone! 🪨",
+        # sidebar
+        "sidebar_header": "⚙️ Controls",
+        "lang_label": "🌐 Language / Idioma",
+        "upd_available": "🔔 An update is available ({n} {word})!\n\n"
+                         "Double-click **atualizar.bat** (or run `git pull`) and reopen the panel.",
+        "upd_word_one": "change", "upd_word_many": "changes",
+        "upd_latest": "✅ You're on the latest version",
+        "update_now": "📸 Update now",
+        "update_now_help": "Reads the game save and stores a new snapshot",
+        "snapshot_pick": "Snapshot",
+        "species_slider": "How many species to show",
+        "db_count": "Snapshots in the database: **{n}**",
+        "db_file": "Database: `{name}`",
+        # metrics
+        "summary": "📊 Summary — {when}",
+        "m_rank": "Account rank",
+        "m_kills": "Total kills",
+        "m_credits": "Credits",
+        "m_promos": "Promotions",
+        "m_missions": "Missions completed",
+        "m_games": "Games played",
+        "m_playtime": "Playtime",
+        # tabs
+        "tab_species": "🐛 By species",
+        "tab_time": "📈 Over time",
+        "tab_ocs": "⚙️ Overclocks",
+        "tab_since": "🆕 Since last snapshot",
+        "tab_table": "🗂️ Table",
+        # tab: species
+        "top_species": "**Top {n} most-killed species** (out of {total} total)",
+        # tab: over time
+        "time_need_more": "There's only **one** snapshot so far. Take more (with the "
+                          "**📸 Update now** button, on different days) and the progress "
+                          "shows up here. History in the making! 📆",
+        "time_kills": "**Total kills over time**",
+        "time_credits": "**Credits over time**",
+        "time_rank": "**Account rank**",
+        "time_playtime": "**Playtime (seconds)**",
+        # chart labels
+        "ax_kills": "Kills",
+        "ax_credits": "Credits",
+        "ax_rank": "Rank",
+        "ax_seconds": "Seconds",
+        "tt_species": "Species",
+        "tt_when": "When",
+        # tab: overclocks
+        "oc_reread": "🔄 Re-read from save",
+        "oc_reread_help": "Refreshes the overclock reading straight from the save",
+        "oc_no_guids": "The **guids.json** file (the overclocks/cosmetics table) is missing "
+                       "from the project folder.",
+        "oc_no_save": "Couldn't find the game save to read your overclocks — it has to be "
+                      "reachable **on this PC**. (It works on the PC where you play.)",
+        "oc_forged": "Overclocks forged",
+        "oc_missing": "Left to forge",
+        "oc_complete": "Collection complete",
+        "oc_caption": "Full bar = the weapon's total overclocks; the orange part is how many "
+                      "you've forged. The most incomplete weapons are on top.",
+        "oc_expander": "📋 What's left to forge (per weapon)",
+        "oc_col_class": "Class",
+        "oc_col_weapon": "Weapon",
+        "oc_col_havetotal": "Have/Total",
+        "oc_col_missing": "Missing",
+        "oc_ax": "Overclocks",
+        "cos_title": "**Cosmetics** — estimate ⚠️",
+        "cos_caption": "Cosmetic unlocks in DRG come from several sources; this count may be "
+                       "BELOW the real one. Treat it as an estimate until we map it better.",
+        "cos_col_cat": "Category",
+        "cos_col_have": "Have",
+        "cos_col_total": "Total",
+        # tab: since last
+        "since_only": "This is the oldest snapshot (or the only one). There's no previous one "
+                      "to compare with. Pick a more recent snapshot in the sidebar, or take "
+                      "new ones.",
+        "since_compare": "**Comparing** snapshot #{a} with #{b} ({when})",
+        "since_nothing": "Nothing changed between these two snapshots. 😴",
+        "since_total": "New kills in this period",
+        # tab: table
+        "search_species": "🔎 Search species",
+        "search_ph": "e.g.: Grunt, Mactera...",
+        "col_species": "Species",
+        "col_kills": "Kills",
+        "download_csv": "⬇️ Download as CSV",
+        # tab: missions & stats
+        "tab_stats": "🎖️ Missions & Stats",
+        "stats_no_ref": "The **mission_stats.json** file (the stats reference table) is "
+                        "missing from the project folder.",
+        "sec_overview": "Overview",
+        "sec_secondary": "Secondary missions by type",
+        "sec_biome": "Missions by biome",
+        "sec_type": "Missions by type",
+        "sec_class": "Missions by class",
+        "sec_hazard": "Missions by hazard",
+        "sec_warning": "Warnings completed",
+        "sec_economy": "Economy & bar",
+        "sec_forging": "Forging",
+        "sec_progression": "Progression",
+        "sec_misc": "Miscellaneous",
+        "m_distance": "Distance travelled",
+        "m_missiontime": "Mission time",
+        "m_downs": "Total downs",
+        "m_levelups": "Character level-ups",
+        "col_stat": "Stat",
+        "col_value": "Value",
+        "stats_caption": "Read live from your current save and cross-referenced with the "
+                         "game's own stat definitions (reverse-engineered from the .pak). "
+                         "Not stored in history — it's your state right now.",
+    },
+    "pt": {
+        "caption": "Suas estatísticas de Deep Rock Galactic — extraídas do save, com histórico. "
+                   "Rock and Stone!",
+        "empty_warn": "Ainda não há nenhuma **foto** no banco. Vamos tirar a primeira?",
+        "empty_body": "O botão abaixo lê o save do jogo e grava a primeira foto. "
+                      "Depois disso os gráficos aparecem sozinhos.",
+        "empty_btn": "📸 Tirar a primeira foto",
+        "reading_save": "Lendo o save...",
+        "msg_no_save": "❌ Não achei o save automaticamente. Rode o snapshot.py apontando o "
+                       "caminho uma vez.",
+        "msg_nothing": "ℹ️ Nada mudou desde a última foto — nenhuma nova gravada.",
+        "msg_ok": "✅ Foto nova gravada (snapshot #{id})! Rock and Stone! 🪨",
+        "sidebar_header": "⚙️ Controles",
+        "lang_label": "🌐 Language / Idioma",
+        "upd_available": "🔔 Tem atualização disponível ({n} {word})!\n\n"
+                         "Dê duplo clique em **atualizar.bat** (ou rode `git pull`) e reabra o painel.",
+        "upd_word_one": "novidade", "upd_word_many": "novidades",
+        "upd_latest": "✅ Você está na última versão",
+        "update_now": "📸 Atualizar agora",
+        "update_now_help": "Lê o save do jogo e grava uma foto nova",
+        "snapshot_pick": "Foto (snapshot)",
+        "species_slider": "Quantas espécies mostrar",
+        "db_count": "Fotos no banco: **{n}**",
+        "db_file": "Banco: `{name}`",
+        "summary": "📊 Resumo — {when}",
+        "m_rank": "Rank da conta",
+        "m_kills": "Total de kills",
+        "m_credits": "Créditos",
+        "m_promos": "Promoções",
+        "m_missions": "Missões concluídas",
+        "m_games": "Partidas jogadas",
+        "m_playtime": "Tempo de jogo",
+        "tab_species": "🐛 Por espécie",
+        "tab_time": "📈 Evolução",
+        "tab_ocs": "⚙️ Overclocks",
+        "tab_since": "🆕 Desde a última foto",
+        "tab_table": "🗂️ Tabela",
+        "top_species": "**Top {n} espécies mais mortas** (de {total} no total)",
+        "time_need_more": "Só existe **uma** foto por enquanto. Tire mais fotos (com o botão "
+                          "**📸 Atualizar agora**, em dias diferentes) e a evolução aparece "
+                          "aqui. É o histórico se formando! 📆",
+        "time_kills": "**Total de kills ao longo do tempo**",
+        "time_credits": "**Créditos ao longo do tempo**",
+        "time_rank": "**Rank da conta**",
+        "time_playtime": "**Tempo de jogo (segundos)**",
+        "ax_kills": "Kills",
+        "ax_credits": "Créditos",
+        "ax_rank": "Rank",
+        "ax_seconds": "Segundos",
+        "tt_species": "Espécie",
+        "tt_when": "Quando",
+        "oc_reread": "🔄 Reler do save",
+        "oc_reread_help": "Atualiza a leitura de overclocks direto do save",
+        "oc_no_guids": "Falta o **guids.json** (a tabela de overclocks/cosméticos) na pasta "
+                       "do projeto.",
+        "oc_no_save": "Não achei o save do jogo pra ler seus overclocks — ele precisa estar "
+                      "acessível **neste PC**. (No PC onde você joga, funciona.)",
+        "oc_forged": "Overclocks forjados",
+        "oc_missing": "Faltam forjar",
+        "oc_complete": "Coleção completa",
+        "oc_caption": "Barra cheia = total de overclocks da arma; a parte laranja é quanto "
+                      "você já forjou. As armas mais incompletas ficam no topo.",
+        "oc_expander": "📋 O que falta forjar (por arma)",
+        "oc_col_class": "Classe",
+        "oc_col_weapon": "Arma",
+        "oc_col_havetotal": "Tem/Total",
+        "oc_col_missing": "Faltando",
+        "oc_ax": "Overclocks",
+        "cos_title": "**Cosméticos** — estimativa ⚠️",
+        "cos_caption": "O desbloqueio de cosméticos no DRG vem de várias fontes; esta contagem "
+                       "pode ficar ABAIXO do real. Trate como estimativa até a gente mapear melhor.",
+        "cos_col_cat": "Categoria",
+        "cos_col_have": "Tem",
+        "cos_col_total": "Total",
+        "since_only": "Esta é a foto mais antiga (ou a única). Não há uma anterior pra comparar. "
+                      "Escolha uma foto mais recente na barra lateral, ou tire fotos novas.",
+        "since_compare": "**Comparando** a foto #{a} com a #{b} ({when})",
+        "since_nothing": "Nada mudou entre essas duas fotos. 😴",
+        "since_total": "Total de kills novas nesse período",
+        "search_species": "🔎 Buscar espécie",
+        "search_ph": "ex.: Grunt, Mactera...",
+        "col_species": "Espécie",
+        "col_kills": "Kills",
+        "download_csv": "⬇️ Baixar como CSV",
+        # tab: missions & stats
+        "tab_stats": "🎖️ Missões & Stats",
+        "stats_no_ref": "Falta o **mission_stats.json** (a tabela de referência das stats) "
+                        "na pasta do projeto.",
+        "sec_overview": "Visão geral",
+        "sec_secondary": "Missões secundárias por tipo",
+        "sec_biome": "Missões por bioma",
+        "sec_type": "Missões por tipo",
+        "sec_class": "Missões por classe",
+        "sec_hazard": "Missões por perigo",
+        "sec_warning": "Warnings concluídos",
+        "sec_economy": "Economia & bar",
+        "sec_forging": "Forja",
+        "sec_progression": "Progressão",
+        "sec_misc": "Diversos",
+        "m_distance": "Distância percorrida",
+        "m_missiontime": "Tempo em missão",
+        "m_downs": "Total de quedas",
+        "m_levelups": "Level-ups de classe",
+        "col_stat": "Stat",
+        "col_value": "Valor",
+        "stats_caption": "Lido ao vivo do seu save atual e cruzado com as definições de stat "
+                         "do próprio jogo (engenharia reversa do .pak). Não é guardado no "
+                         "histórico — é o seu estado de agora.",
+    },
+}
+
+
+def T(key: str, **kw) -> str:
+    """The current-language string for `key`, with optional .format() fields."""
+    s = TEXTS[lang][key]
+    return s.format(**kw) if kw else s
 
 
 # ----------------------------------------------------------------------------
@@ -119,27 +370,47 @@ def carregar_deltas(conn, id_atual: int, id_anterior: int) -> pd.DataFrame:
 
 
 # ----------------------------------------------------------------------------
-# FORMATTERS (make a giant number readable)
+# FORMATTERS (make a giant number readable — language-aware separators)
 # ----------------------------------------------------------------------------
 def fmt_num(n) -> str:
-    """75466 -> '75.466' (BR-style thousands separator)."""
+    """75466 -> '75,466' (EN) / '75.466' (PT)."""
     if n is None:
         return "—"
-    return f"{int(n):,}".replace(",", ".")
+    s = f"{int(n):,}"                      # Python default = US style (comma)
+    return s.replace(",", ".") if lang == "pt" else s
 
 
 def fmt_horas(segundos) -> str:
+    """Seconds -> '34.3 h' (EN) / '34,3 h' (PT)."""
     if not segundos:
         return "—"
     h = segundos / 3600
-    return f"{h:,.1f} h".replace(",", "X").replace(".", ",").replace("X", ".")
+    s = f"{h:,.1f}"                        # US style: 1,234.5
+    if lang == "pt":
+        s = s.replace(",", "X").replace(".", ",").replace("X", ".")
+    return f"{s} h"
+
+
+def fmt_km(cm) -> str:
+    """Centimetres -> '2,032.1 km' (EN) / '2.032,1 km' (PT)."""
+    if not cm:
+        return "—"
+    s = f"{cm / 100000:,.1f}"              # US style
+    if lang == "pt":
+        s = s.replace(",", "X").replace(".", ",").replace("X", ".")
+    return f"{s} km"
+
+
+def _dt_fmt() -> str:
+    """Date/time pattern for the current language (PT: dd/mm, EN: mm/dd)."""
+    return "%d/%m/%Y %H:%M" if lang == "pt" else "%m/%d/%Y %H:%M"
 
 
 def fmt_quando(dt) -> str:
     """Friendly date/time."""
     if pd.isna(dt):
         return "—"
-    return dt.strftime("%d/%m/%Y %H:%M")
+    return dt.strftime(_dt_fmt())
 
 
 # ----------------------------------------------------------------------------
@@ -149,7 +420,7 @@ def atualizar_agora() -> str:
     """Read the save and store a new snapshot. Returns a message for the user."""
     save_path = snapshot.find_save()
     if save_path is None or not save_path.exists():
-        return "❌ Não achei o save automaticamente. Rode o snapshot.py apontando o caminho uma vez."
+        return T("msg_no_save")
     names = snapshot.load_names()
     conn = snapshot.conectar(DB_PATH)
     try:
@@ -157,8 +428,8 @@ def atualizar_agora() -> str:
     finally:
         conn.close()
     if snap_id is None:
-        return "ℹ️ Nada mudou desde a última foto — nenhuma nova gravada."
-    return f"✅ Foto nova gravada (snapshot #{snap_id})! Rock and Stone! 🪨"
+        return T("msg_nothing")
+    return T("msg_ok", id=snap_id)
 
 
 # ----------------------------------------------------------------------------
@@ -171,15 +442,15 @@ def grafico_barras_especies(df: pd.DataFrame, top_n: int) -> alt.Chart:
         y=alt.Y("especie:N", sort="-x", title=None,
                 axis=alt.Axis(labelColor=COR_TEXTO, labelLimit=220,
                               labelFontSize=12, domainColor=COR_GRID, ticks=False)),
-        x=alt.X("count:Q", title="Kills",
+        x=alt.X("count:Q", title=T("ax_kills"),
                 axis=alt.Axis(labelColor=COR_TEXTO_FRACO, titleColor=COR_TEXTO_FRACO,
                               gridColor=COR_GRID, format="~s")),
     )
     barras = base.mark_bar(cornerRadiusEnd=4, height=alt.RelativeBandSize(0.72)).encode(
         # color = magnitude (single-hue sequential ramp), no legend: the bar speaks for itself.
         color=alt.Color("count:Q", scale=alt.Scale(range=RAMP_LARANJA), legend=None),
-        tooltip=[alt.Tooltip("especie:N", title="Espécie"),
-                 alt.Tooltip("count:Q", title="Kills", format=",")],
+        tooltip=[alt.Tooltip("especie:N", title=T("tt_species")),
+                 alt.Tooltip("count:Q", title=T("ax_kills"), format=",")],
     )
     # value label right at the bar's tip (readable without hovering)
     rotulos = base.mark_text(
@@ -203,7 +474,7 @@ def grafico_evolucao(df: pd.DataFrame, coluna: str, titulo: str, cor: str) -> al
         y=alt.Y(f"{coluna}:Q", title=titulo,
                 axis=alt.Axis(labelColor=COR_TEXTO_FRACO, titleColor=COR_TEXTO_FRACO,
                               gridColor=COR_GRID, format="~s")),
-        tooltip=[alt.Tooltip("quando:T", title="Quando", format="%d/%m/%Y %H:%M"),
+        tooltip=[alt.Tooltip("quando:T", title=T("tt_when"), format="%d/%m/%Y %H:%M"),
                  alt.Tooltip(f"{coluna}:Q", title=titulo, format=",")],
     ).properties(height=260).configure_view(strokeWidth=0).configure(background=COR_SURFACE)
     return linha
@@ -234,6 +505,35 @@ def estado_do_save() -> dict | None:
             "vanity":   {g.upper() for g in s["vanity_items"]}}
 
 
+@st.cache_data(show_spinner=False)
+def carregar_mission_stats() -> pd.DataFrame | None:
+    """Every MissionStat, read from the CURRENT save + labeled via mission_stats.json.
+
+    Like the overclocks tab, this is CURRENT state (not history), so we read the save
+    live and cross-ref the reference file. Returns a DataFrame [category, label, value]
+    or None if the save / reference isn't available.
+    """
+    ref_p = Path("mission_stats.json")
+    if not ref_p.exists():
+        return None
+    save = snapshot.find_save()
+    if save is None or not Path(save).exists():
+        return None
+    ref = json.loads(ref_p.read_text(encoding="utf-8"))
+    stats = drg.parse_mission_stats(Path(save).read_bytes())
+    linhas = [{"category": ref[g]["category"], "label": ref[g]["label"], "value": v}
+              for g, v in stats.items() if g in ref]
+    return pd.DataFrame(linhas)
+
+
+def grafico_categoria(df: pd.DataFrame, category: str) -> alt.Chart:
+    """Reuse the species-bar chart for one stat category (label -> especie, value -> count)."""
+    d = (df[df["category"] == category][["label", "value"]]
+         .rename(columns={"label": "especie", "value": "count"})
+         .sort_values("count", ascending=False))
+    return grafico_barras_especies(d, len(d))
+
+
 def tabela_overclocks(ref: dict, forjados: set) -> pd.DataFrame:
     """Per weapon: how many overclocks you have, the total, and the missing list."""
     total, tem, faltam, classe = defaultdict(int), defaultdict(int), defaultdict(list), {}
@@ -249,7 +549,8 @@ def tabela_overclocks(ref: dict, forjados: set) -> pd.DataFrame:
         "arma": a, "classe": classe[a], "tem": tem[a], "total": total[a],
         "faltam_n": total[a] - tem[a], "pct": tem[a] / total[a],
         "rotulo": f"{tem[a]}/{total[a]}",
-        "faltando": ", ".join(sorted(faltam[a])) or "— completo!",
+        "faltando": ", ".join(sorted(faltam[a])) or ("— completo!" if lang == "pt"
+                                                      else "— complete!"),
     } for a in total]
     return pd.DataFrame(linhas).sort_values(["pct", "arma"])
 
@@ -259,20 +560,24 @@ def grafico_overclocks(df: pd.DataFrame) -> alt.Chart:
     altura = max(160, len(df) * 28)
     base = alt.Chart(df).encode(
         y=alt.Y("arma:N", sort=alt.EncodingSortField("pct", order="ascending"),
-                title=None, axis=alt.Axis(labelColor=COR_TEXTO_FRACO)),
+                title=None,
+                # labelLimit high enough to show the FULL weapon name (e.g.
+                # "'Lead Storm' Powered Minigun") — the default truncates to "...Pow"
+                # and made the nickname look like an overclock name.
+                axis=alt.Axis(labelColor=COR_TEXTO_FRACO, labelLimit=260)),
     )
     fundo = base.mark_bar(color=COR_GRID, cornerRadiusEnd=3,
                           height=alt.RelativeBandSize(0.68)).encode(
-        x=alt.X("total:Q", title="Overclocks",
+        x=alt.X("total:Q", title=T("oc_ax"),
                 axis=alt.Axis(labelColor=COR_TEXTO_FRACO, tickMinStep=1)),
     )
     frente = base.mark_bar(cornerRadiusEnd=3, height=alt.RelativeBandSize(0.68)).encode(
         x=alt.X("tem:Q"),
         color=alt.Color("pct:Q", scale=alt.Scale(range=RAMP_LARANJA), legend=None),
-        tooltip=[alt.Tooltip("arma:N", title="Arma"),
-                 alt.Tooltip("classe:N", title="Classe"),
-                 alt.Tooltip("rotulo:N", title="Tem / Total"),
-                 alt.Tooltip("faltando:N", title="Faltando")],
+        tooltip=[alt.Tooltip("arma:N", title=T("oc_col_weapon")),
+                 alt.Tooltip("classe:N", title=T("oc_col_class")),
+                 alt.Tooltip("rotulo:N", title=T("oc_col_havetotal")),
+                 alt.Tooltip("faltando:N", title=T("oc_col_missing"))],
     )
     rotulo = base.mark_text(align="left", dx=5, color=COR_TEXTO).encode(
         x=alt.X("total:Q"), text="rotulo:N",
@@ -287,6 +592,14 @@ def grafico_overclocks(df: pd.DataFrame) -> alt.Chart:
 # APPLICATION
 # ============================================================================
 st.set_page_config(page_title="DRG Stats Tracker", page_icon="🪨", layout="wide")
+
+# --- language: decided BEFORE any UI is drawn -------------------------------
+# The picker widget lives in the sidebar (rendered further down), but it writes to
+# st.session_state["_lang_label"] with a key. On the rerun a change triggers, that
+# value is already updated when we read it here at the top — so the WHOLE page
+# (title included) reflects the chosen language. English is the default.
+st.session_state.setdefault("_lang_label", "English")
+lang = LANGS[st.session_state["_lang_label"]]   # global, read by T()/fmt_*/charts
 
 # --- a dark, cave-style theme via CSS (Streamlit lets you inject it) ---
 st.markdown(f"""
@@ -305,18 +618,16 @@ st.markdown(f"""
 """, unsafe_allow_html=True)
 
 st.title("🪨 DRG Stats Tracker")
-st.caption("Suas estatísticas de Deep Rock Galactic — extraídas do save, com histórico. "
-           "Rock and Stone!")
+st.caption(T("caption"))
 
 conn = conectar()
 
 # --- Case 1: database doesn't exist yet / is empty -------------------------
 if conn is None or carregar_snapshots(conn).empty:
-    st.warning("Ainda não há nenhuma **foto** no banco. Vamos tirar a primeira?")
-    st.write("O botão abaixo lê o save do jogo e grava a primeira foto. "
-             "Depois disso os gráficos aparecem sozinhos.")
-    if st.button("📸 Tirar a primeira foto", type="primary"):
-        with st.spinner("Lendo o save..."):
+    st.warning(T("empty_warn"))
+    st.write(T("empty_body"))
+    if st.button(T("empty_btn"), type="primary"):
+        with st.spinner(T("reading_save")):
             msg = atualizar_agora()
         st.info(msg)
         st.rerun()
@@ -367,22 +678,23 @@ def checar_atualizacao() -> dict:
 
 # --------------------------- SIDEBAR ---------------------------------------
 with st.sidebar:
-    st.header("⚙️ Controles")
+    st.header(T("sidebar_header"))
+
+    # Language picker (writes st.session_state["_lang_label"]; read at the top).
+    st.selectbox(T("lang_label"), list(LANGS.keys()), key="_lang_label")
 
     # Update notification: warns (once/hour) when the GitHub repo has newer code.
     _upd = checar_atualizacao()
     if _upd["estado"] == "desatualizado":
-        st.warning(
-            f"🔔 Tem atualização disponível ({_upd['atras']} "
-            f"{'novidade' if _upd['atras'] == 1 else 'novidades'})!\n\n"
-            "Dê duplo clique em **atualizar.bat** (ou rode `git pull`) e reabra o painel."
-        )
+        _n = _upd["atras"]
+        _word = T("upd_word_one") if _n == 1 else T("upd_word_many")
+        st.warning(T("upd_available", n=_n, word=_word))
     elif _upd["estado"] == "atualizado":
-        st.caption("✅ Você está na última versão")
+        st.caption(T("upd_latest"))
 
-    if st.button("📸 Atualizar agora", type="primary", width='stretch',
-                 help="Lê o save do jogo e grava uma foto nova"):
-        with st.spinner("Lendo o save..."):
+    if st.button(T("update_now"), type="primary", width='stretch',
+                 help=T("update_now_help")):
+        with st.spinner(T("reading_save")):
             msg = atualizar_agora()
         st.session_state["_msg_atualizar"] = msg
         st.rerun()
@@ -396,14 +708,14 @@ with st.sidebar:
         f"#{r.id} — {fmt_quando(r.quando)}": int(r.id)
         for r in snaps.iloc[::-1].itertuples()   # newest on top
     }
-    escolha = st.selectbox("Foto (snapshot)", list(opcoes.keys()))
+    escolha = st.selectbox(T("snapshot_pick"), list(opcoes.keys()))
     snap_id = opcoes[escolha]
 
-    top_n = st.slider("Quantas espécies mostrar", 5, 77, 20, step=1)
+    top_n = st.slider(T("species_slider"), 5, 77, 20, step=1)
 
     st.divider()
-    st.caption(f"Fotos no banco: **{len(snaps)}**")
-    st.caption(f"Banco: `{Path(DB_PATH).resolve().name}`")
+    st.caption(T("db_count", n=len(snaps)))
+    st.caption(T("db_file", name=Path(DB_PATH).resolve().name))
 
 # --------------------------- HEADER (metrics) ------------------------------
 linha = snaps[snaps["id"] == snap_id].iloc[0]
@@ -419,63 +731,61 @@ def delta_de(coluna):
     d = linha[coluna] - linha_ant[coluna]
     return None if d == 0 else fmt_num(d)
 
-st.subheader(f"📊 Resumo — {fmt_quando(linha['quando'])}")
+st.subheader(T("summary", when=fmt_quando(linha['quando'])))
 
 c1, c2, c3, c4, c5, c6, c7 = st.columns(7)
-c1.metric("Rank da conta", fmt_num(linha["level"]), delta_de("level"))
-c2.metric("Total de kills", fmt_num(linha["total_kills"]), delta_de("total_kills"))
-c3.metric("Créditos", fmt_num(linha["credits"]), delta_de("credits"))
-c4.metric("Promoções", fmt_num(linha["times_retired"]), delta_de("times_retired"))
+c1.metric(T("m_rank"), fmt_num(linha["level"]), delta_de("level"))
+c2.metric(T("m_kills"), fmt_num(linha["total_kills"]), delta_de("total_kills"))
+c3.metric(T("m_credits"), fmt_num(linha["credits"]), delta_de("credits"))
+c4.metric(T("m_promos"), fmt_num(linha["times_retired"]), delta_de("times_retired"))
 # Missions COMPLETED (what the game shows, e.g. 445) != Games PLAYED
 # (NumberOfGamesPlayed, e.g. 504, includes aborted/failed ones). Distinct stats.
-c5.metric("Missões concluídas", fmt_num(linha["missions_completed"]), delta_de("missions_completed"))
-c6.metric("Partidas jogadas", fmt_num(linha["games_played"]), delta_de("games_played"))
-c7.metric("Tempo de jogo", fmt_horas(linha["playtime_seconds"]))
+c5.metric(T("m_missions"), fmt_num(linha["missions_completed"]), delta_de("missions_completed"))
+c6.metric(T("m_games"), fmt_num(linha["games_played"]), delta_de("games_played"))
+c7.metric(T("m_playtime"), fmt_horas(linha["playtime_seconds"]))
 
 st.divider()
 
 # --------------------------- TABS ------------------------------------------
-aba_especies, aba_tempo, aba_ocs, aba_desde, aba_tabela = st.tabs(
-    ["🐛 Por espécie", "📈 Evolução", "⚙️ Overclocks", "🆕 Desde a última foto", "🗂️ Tabela"]
+aba_especies, aba_tempo, aba_ocs, aba_stats, aba_desde, aba_tabela = st.tabs(
+    [T("tab_species"), T("tab_time"), T("tab_ocs"), T("tab_stats"),
+     T("tab_since"), T("tab_table")]
 )
 
 kills = carregar_kills(conn, snap_id)
 
 # ---- Tab 1: ranking by species ----
 with aba_especies:
-    st.markdown(f"**Top {min(top_n, len(kills))} espécies mais mortas** "
-                f"(de {len(kills)} no total)")
+    st.markdown(T("top_species", n=min(top_n, len(kills)), total=len(kills)))
     st.altair_chart(grafico_barras_especies(kills, top_n), width='stretch')
 
 # ---- Tab 2: progress over time ----
 with aba_tempo:
     if len(snaps) < 2:
-        st.info("Só existe **uma** foto por enquanto. Tire mais fotos (com o botão "
-                "**📸 Atualizar agora**, em dias diferentes) e a evolução aparece aqui. "
-                "É o histórico se formando! 📆")
+        st.info(T("time_need_more"))
     else:
         col_a, col_b = st.columns(2)
         with col_a:
-            st.markdown("**Total de kills ao longo do tempo**")
-            st.altair_chart(grafico_evolucao(snaps, "total_kills", "Kills", COR_LARANJA),
+            st.markdown(T("time_kills"))
+            st.altair_chart(grafico_evolucao(snaps, "total_kills", T("ax_kills"), COR_LARANJA),
                             width='stretch')
         with col_b:
-            st.markdown("**Créditos ao longo do tempo**")
-            st.altair_chart(grafico_evolucao(snaps, "credits", "Créditos", "#eda100"),
+            st.markdown(T("time_credits"))
+            st.altair_chart(grafico_evolucao(snaps, "credits", T("ax_credits"), "#eda100"),
                             width='stretch')
         col_c, col_d = st.columns(2)
         with col_c:
-            st.markdown("**Rank da conta**")
-            st.altair_chart(grafico_evolucao(snaps, "level", "Rank", "#1baf7a"),
+            st.markdown(T("time_rank"))
+            st.altair_chart(grafico_evolucao(snaps, "level", T("ax_rank"), "#1baf7a"),
                             width='stretch')
         with col_d:
-            st.markdown("**Tempo de jogo (segundos)**")
-            st.altair_chart(grafico_evolucao(snaps, "playtime_seconds", "Segundos", "#e87ba4"),
+            st.markdown(T("time_playtime"))
+            st.altair_chart(grafico_evolucao(snaps, "playtime_seconds", T("ax_seconds"), "#e87ba4"),
                             width='stretch')
 
 # ---- Tab 3: overclocks (and cosmetics) ----
 with aba_ocs:
-    if st.button("🔄 Reler do save", help="Atualiza a leitura de overclocks direto do save"):
+    if st.button(T("oc_reread"), help=T("oc_reread_help")):
         estado_do_save.clear()
         carregar_guids.clear()
         st.rerun()
@@ -483,55 +793,120 @@ with aba_ocs:
     ref = carregar_guids()
     estado = estado_do_save()
     if ref is None:
-        st.warning("Falta o **guids.json** (a tabela de overclocks/cosméticos) na pasta do projeto.")
+        st.warning(T("oc_no_guids"))
     elif estado is None:
-        st.warning("Não achei o save do jogo pra ler seus overclocks — ele precisa estar "
-                   "acessível **neste PC**. (No PC onde você joga, funciona.)")
+        st.warning(T("oc_no_save"))
     else:
         oc = tabela_overclocks(ref, estado["forjados"])
         tem_t, tot_t = int(oc["tem"].sum()), int(oc["total"].sum())
         m1, m2, m3 = st.columns(3)
-        m1.metric("Overclocks forjados", f"{tem_t}/{tot_t}")
-        m2.metric("Faltam forjar", fmt_num(tot_t - tem_t))
-        m3.metric("Coleção completa", f"{tem_t / tot_t * 100:.0f}%")
+        m1.metric(T("oc_forged"), f"{tem_t}/{tot_t}")
+        m2.metric(T("oc_missing"), fmt_num(tot_t - tem_t))
+        m3.metric(T("oc_complete"), f"{tem_t / tot_t * 100:.0f}%")
         st.progress(tem_t / tot_t)
         st.altair_chart(grafico_overclocks(oc), width='stretch')
-        st.caption("Barra cheia = total de overclocks da arma; a parte laranja é quanto "
-                   "você já forjou. As armas mais incompletas ficam no topo.")
+        st.caption(T("oc_caption"))
 
-        with st.expander("📋 O que falta forjar (por arma)"):
+        with st.expander(T("oc_expander")):
             faltantes = (oc[oc["faltam_n"] > 0][["classe", "arma", "rotulo", "faltando"]]
-                         .rename(columns={"classe": "Classe", "arma": "Arma",
-                                          "rotulo": "Tem/Total", "faltando": "Faltando"}))
+                         .rename(columns={"classe": T("oc_col_class"), "arma": T("oc_col_weapon"),
+                                          "rotulo": T("oc_col_havetotal"),
+                                          "faltando": T("oc_col_missing")}))
             st.dataframe(faltantes.reset_index(drop=True), width='stretch', hide_index=True)
 
         # --- cosmetics: honest about the uncertainty (see section 4.2/5 of CLAUDE.md) ---
         st.divider()
-        st.markdown("**Cosméticos** — estimativa ⚠️")
-        st.caption("O desbloqueio de cosméticos no DRG vem de várias fontes; esta contagem "
-                   "pode ficar ABAIXO do real. Trate como estimativa até a gente mapear melhor.")
+        st.markdown(T("cos_title"))
+        st.caption(T("cos_caption"))
         possui = estado["vanity"] | estado["forjados"]   # vanity + the matrix-core forged ones
-        cos = [{"Categoria": cat.replace("Cosmetic - ", ""),
-                "Tem": sum(1 for g in ref[cat] if g.upper() in possui), "Total": len(ref[cat])}
+        cos = [{T("cos_col_cat"): cat.replace("Cosmetic - ", ""),
+                T("cos_col_have"): sum(1 for g in ref[cat] if g.upper() in possui),
+                T("cos_col_total"): len(ref[cat])}
                for cat in ["Cosmetic - Headwear", "Cosmetic - Moustache", "Cosmetic - Beard",
                            "Cosmetic - Sideburns", "Victory Moves", "Weapon Skins"] if cat in ref]
         st.dataframe(pd.DataFrame(cos), width='stretch', hide_index=True)
 
-# ---- Tab 4: what grew since the previous snapshot ----
+# ---- Tab 4: missions & stats (95 stats read live from the save) ----
+with aba_stats:
+    if st.button(T("oc_reread"), help=T("oc_reread_help"), key="reread_stats"):
+        carregar_mission_stats.clear()
+        st.rerun()
+    ms = carregar_mission_stats()
+    if ms is None:
+        if not Path("mission_stats.json").exists():
+            st.warning(T("stats_no_ref"))
+        else:
+            st.warning(T("oc_no_save"))
+    else:
+        st.caption(T("stats_caption"))
+        val_de = dict(zip(ms["label"], ms["value"]))   # label -> value lookup
+
+        # --- Overview tiles (special formatting for distance/time) ---
+        st.markdown("### " + T("sec_overview"))
+        o1, o2, o3, o4, o5, o6 = st.columns(6)
+        o1.metric(T("m_kills"), fmt_num(val_de.get("Enemies Killed")))
+        o2.metric("Minerals", fmt_num(val_de.get("Minerals Mined")))
+        # distance is stored in cm -> show km
+        o3.metric(T("m_distance"), fmt_km(val_de.get("Distance Travelled")))
+        o4.metric(T("m_missiontime"), fmt_horas(val_de.get("Mission Time")))
+        o5.metric(T("m_downs"), fmt_num(val_de.get("Total Downs")))
+        o6.metric(T("m_levelups"), fmt_num(val_de.get("Character Level-Ups")))
+
+        # --- the bar charts the user asked for ---
+        st.markdown("### " + T("sec_secondary"))
+        st.altair_chart(grafico_categoria(ms, "Secondary"), width='stretch')
+
+        st.markdown("### " + T("sec_biome"))
+        st.altair_chart(grafico_categoria(ms, "Biome"), width='stretch')
+
+        st.markdown("### " + T("sec_type"))
+        st.altair_chart(grafico_categoria(ms, "Mission Type"), width='stretch')
+
+        col_cl, col_hz = st.columns(2)
+        with col_cl:
+            st.markdown("### " + T("sec_class"))
+            st.altair_chart(grafico_categoria(ms, "Class"), width='stretch')
+        with col_hz:
+            st.markdown("### " + T("sec_hazard"))
+            st.altair_chart(grafico_categoria(ms, "Hazard"), width='stretch')
+
+        st.markdown("### " + T("sec_warning"))
+        st.altair_chart(grafico_categoria(ms, "Warning"), width='stretch')
+
+        # --- the remaining scalar categories as compact tables ---
+        def tabela_cat(category):
+            t = (ms[ms["category"] == category][["label", "value"]]
+                 .sort_values("value", ascending=False)
+                 .rename(columns={"label": T("col_stat"), "value": T("col_value")}))
+            t[T("col_value")] = t[T("col_value")].map(fmt_num)
+            return t.reset_index(drop=True)
+
+        cA, cB, cC = st.columns(3)
+        for coluna, cat, titulo in [(cA, "Economy", "sec_economy"),
+                                    (cB, "Forging", "sec_forging"),
+                                    (cC, "Progression", "sec_progression")]:
+            with coluna:
+                st.markdown("**" + T(titulo) + "**")
+                st.dataframe(tabela_cat(cat), width='stretch', hide_index=True)
+        if not ms[ms["category"] == "Misc"].empty:
+            st.markdown("**" + T("sec_misc") + "**")
+            st.dataframe(tabela_cat("Misc"), width='stretch', hide_index=True)
+
+
+# ---- Tab 5: what grew since the previous snapshot ----
 with aba_desde:
     if not tem_anterior:
-        st.info("Esta é a foto mais antiga (ou a única). Não há uma anterior pra comparar. "
-                "Escolha uma foto mais recente na barra lateral, ou tire fotos novas.")
+        st.info(T("since_only"))
     else:
-        st.markdown(f"**Comparando** a foto #{snap_id} com a #{int(linha_ant['id'])} "
-                    f"({fmt_quando(linha_ant['quando'])})")
+        st.markdown(T("since_compare", a=snap_id, b=int(linha_ant['id']),
+                      when=fmt_quando(linha_ant['quando'])))
         deltas = carregar_deltas(conn, snap_id, int(linha_ant["id"]))
         cresceram = deltas[deltas["delta"] > 0]
         if cresceram.empty:
-            st.write("Nada mudou entre essas duas fotos. 😴")
+            st.write(T("since_nothing"))
         else:
             total_novo = int(cresceram["delta"].sum())
-            st.metric("Total de kills novas nesse período", fmt_num(total_novo))
+            st.metric(T("since_total"), fmt_num(total_novo))
             g = grafico_barras_especies(
                 cresceram.rename(columns={"delta": "count"}), min(top_n, len(cresceram))
             )
@@ -539,19 +914,20 @@ with aba_desde:
 
 # ---- Tab 5: raw table (with search) ----
 with aba_tabela:
-    busca = st.text_input("🔎 Buscar espécie", placeholder="ex.: Grunt, Mactera...")
-    tabela = kills[["especie", "count"]].rename(columns={"especie": "Espécie", "count": "Kills"})
+    busca = st.text_input(T("search_species"), placeholder=T("search_ph"))
+    tabela = kills[["especie", "count"]].rename(
+        columns={"especie": T("col_species"), "count": T("col_kills")})
     if busca:
-        tabela = tabela[tabela["Espécie"].str.contains(busca, case=False, na=False)]
+        tabela = tabela[tabela[T("col_species")].str.contains(busca, case=False, na=False)]
     tabela = tabela.reset_index(drop=True)
     tabela.index = tabela.index + 1
     st.dataframe(
         tabela, width='stretch', height=560,
-        column_config={"Kills": st.column_config.NumberColumn(format="%d")},
+        column_config={T("col_kills"): st.column_config.NumberColumn(format="%d")},
     )
     # export button (a useful portfolio bonus)
     st.download_button(
-        "⬇️ Baixar como CSV",
+        T("download_csv"),
         tabela.to_csv(index=False).encode("utf-8"),
         file_name=f"drg_kills_snapshot_{snap_id}.csv", mime="text/csv",
     )
