@@ -280,7 +280,51 @@ GUIDs packed together (16 bytes each). `parse_guid_array` skips the header and r
 GUIDs in a row. Then we cross-reference with `guids.json` (which maps GUID → overclock name
 and weapon) and figure out "you have 100 of 160". Same detective pattern as §7.
 
-## 11. The general method (how to reverse-engineer things yourself)
+## 11. Reading the game's OWN files (the `.pak`) — when the JOIN isn't enough
+
+The trick from §7 (discover names by matching numbers) has a ceiling. Deep Rock tracks
+**95 mission statistics** (missions per biome, per class, secondary objectives, warnings…),
+each stored in the save as a **GUID + a number** — but, again, no names. We tried the same
+JOIN: read the number the game shows on its stats screen, find the GUID with that number. It
+worked for some. But **lots of stats share the same number** — three different ones all
+equalled 41. When two things have the same number, matching by number CAN'T tell them apart
+(the same wall as the twin creatures in §7). Dead end.
+
+So we stopped squeezing the save and went to the source: **the game's own files.**
+
+**What's a `.pak`?** A game doesn't ship thousands of loose files — it squishes all its art,
+sounds and data into one giant archive, like a ZIP. DRG's is `FSD-WindowsNoEditor.pak`,
+**2.4 GB**. Inside, each statistic is a tiny file with a **clear name** — the "Apoca Bloom"
+secondary is a file literally called `MS_Secondary_ApocaBloom`. The names we wanted are right
+there; we just have to crack the archive open.
+
+Two hurdles, and how we cleared them:
+
+1. **The files inside are compressed** (squished to save space). Here we got lucky: this pak
+   uses **Zlib** compression, and Python un-squishes Zlib for free (the built-in `zlib`). If
+   it had used the other common method ("Oodle"), we'd have needed an extra tool. So: pure
+   Python, no downloads.
+2. **Which 16 bytes in a stat's file is its GUID?** A file has lots of bytes. Here's the
+   elegant part: we **use the save as an answer key.** We already pulled all 95 real GUIDs
+   from the save. So we open a stat's file, slide over it 16 bytes at a time, and the chunk
+   that ALSO shows up in the save's list — that's the GUID. Zero guessing; the two sources
+   confirm each other.
+
+**The sneaky bug we squashed along the way.** When reading a GUID from the save, the *true*
+16 bytes end **4 bytes before** the word `Value` that follows. Those 4 bytes (`06 00 00 00`)
+were actually the **length of the word "Value"** (5 letters + the hidden `\0` = 6), not part
+of the GUID. Grabbing the wrong 16 bytes made **every** GUID look like it ended in
+`06000000` — a classic "off by 4" that sent us chasing a fake pattern for a while. The rule:
+count your bytes twice (§0's finger is unforgiving).
+
+**The payoff:** all **95 stats** mapped with zero ambiguity, written into `mission_stats.json`
+(GUID → name + category) by `tools/extract_mission_stats.py`. And a bonus truth fell out:
+someone asked for "Cargo Crates" and "Lost Equipment" stats — but there's **no such file** in
+the pak and the game's stats screen never shows them. They simply **aren't tracked**. That's
+not a failure of our tool; it's a real, provable answer — sometimes the honest result is
+"the data doesn't exist."
+
+## 12. The general method (how to reverse-engineer things yourself)
 
 If one day you want to decode ANOTHER format from scratch, the recipe is:
 
@@ -303,6 +347,8 @@ If one day you want to decode ANOTHER format from scratch, the recipe is:
 - **Find properties by their exact encoding**, never by a loose substring.
 - The save gives **codes (GUIDs)**; we discovered the **names** by a JOIN (matching numbers).
 - Some numbers are **computed**, not stored — careful not to read the wrong "similar" one.
+- When matching by number ties up, **read the game's OWN files** (the `.pak`) and cross-check
+  the GUIDs against the save (which acts as an answer key).
 
 Rock and Stone, miner. Now you know how to read bytes. ⛏️
 
@@ -585,7 +631,51 @@ os GUIDs coladinhos (16 bytes cada). A `parse_guid_array` pula o cabeçalho e l�
 em fila. Depois a gente cruza com o `guids.json` (que mapeia GUID → nome do overclock e
 arma) e descobre "você tem 100 de 160". Mesmo padrão de detetive do §7.
 
-## 11. O método geral (como fazer engenharia reversa você mesmo)
+## 11. Lendo os PRÓPRIOS arquivos do jogo (o `.pak`) — quando o JOIN não basta
+
+O truque do §7 (descobrir nomes batendo números) tem um teto. O Deep Rock guarda **95
+estatísticas de missão** (missões por bioma, por classe, objetivos secundários, warnings…),
+cada uma salva como **GUID + um número** — mas, de novo, sem nome. Tentamos o mesmo JOIN: ler
+o número que o jogo mostra na tela de stats, achar o GUID com aquele número. Funcionou pra
+algumas. Só que **muitas stats têm o MESMO número** — três diferentes valiam 41. Quando duas
+coisas têm o mesmo número, casar por número NÃO consegue distinguir (a mesma parede dos bichos
+gêmeos do §7). Beco sem saída.
+
+Então paramos de espremer o save e fomos na fonte: **os próprios arquivos do jogo.**
+
+**O que é um `.pak`?** Um jogo não vem com milhares de arquivos soltos — ele espreme toda a
+arte, som e dados num arquivão só, tipo um ZIP. O do DRG é o `FSD-WindowsNoEditor.pak`, de
+**2.4 GB**. Lá dentro, cada estatística é um arquivinho com **nome claro** — a secundária de
+"Apoca Bloom" é um arquivo chamado literalmente `MS_Secondary_ApocaBloom`. Os nomes que a
+gente queria estão ali; é só arrombar o arquivão.
+
+Dois obstáculos, e como passamos:
+
+1. **Os arquivos lá dentro estão comprimidos** (espremidos pra ocupar menos). Aqui deu sorte:
+   este pak usa compressão **Zlib**, e o Python descomprime Zlib de graça (o módulo embutido
+   `zlib`). Se fosse o outro método comum ("Oodle"), precisaríamos de uma ferramenta extra.
+   Então: Python puro, sem baixar nada.
+2. **Quais 16 bytes do arquivo de uma stat são o GUID dela?** Um arquivo tem um monte de
+   bytes. Aqui está a parte elegante: usamos o **save como gabarito.** A gente já tinha os 95
+   GUIDs verdadeiros tirados do save. Então abrimos o arquivo de uma stat, deslizamos de 16
+   em 16 bytes, e o pedaço que TAMBÉM aparece na lista do save — esse é o GUID. Zero chute; as
+   duas fontes se confirmam.
+
+**O bug sacana que esmagamos no caminho.** Ao ler um GUID do save, os 16 bytes *verdadeiros*
+terminam **4 bytes ANTES** da palavra `Value` que vem logo depois. Esses 4 bytes
+(`06 00 00 00`) eram na verdade o **tamanho da palavra "Value"** (5 letras + o `\0` escondido
+= 6), não parte do GUID. Pegar os 16 bytes errados fazia **TODO** GUID parecer terminar em
+`06000000` — um clássico "errou por 4" que nos fez perseguir um padrão falso por um tempo. A
+regra: conte seus bytes duas vezes (o dedo do §0 não perdoa).
+
+**O prêmio:** as **95 stats** mapeadas com zero ambiguidade, gravadas no `mission_stats.json`
+(GUID → nome + categoria) pelo `tools/extract_mission_stats.py`. E uma verdade-bônus caiu no
+colo: alguém pediu as stats de "Cargo Crates" e "Lost Equipment" — mas **não existe arquivo
+desses** no pak e a tela de stats do jogo nunca os mostra. Simplesmente **não são
+rastreados**. Isso não é falha da ferramenta; é uma resposta real e demonstrável — às vezes o
+resultado honesto é "esse dado não existe".
+
+## 12. O método geral (como fazer engenharia reversa você mesmo)
 
 Se um dia você quiser decifrar OUTRO formato do zero, a receita é:
 
@@ -608,5 +698,7 @@ Se um dia você quiser decifrar OUTRO formato do zero, a receita é:
 - **Ache propriedades pela codificação exata**, nunca por substring solta.
 - O save dá **códigos (GUIDs)**; os **nomes** a gente descobriu por JOIN (batendo números).
 - Alguns números são **calculados**, não salvos — cuidado pra não ler o "parecido" errado.
+- Quando casar por número empata, **leia os PRÓPRIOS arquivos do jogo** (o `.pak`) e confira
+  os GUIDs contra o save (que serve de gabarito).
 
 Rock and Stone, mineiro. Agora você sabe ler bytes. ⛏️

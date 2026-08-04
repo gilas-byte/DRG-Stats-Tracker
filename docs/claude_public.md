@@ -123,11 +123,9 @@ total que o jogo exibe é a **SOMA das 4 classes** de um mesmo `MissionStatID`.
 - GUID confirmado de "missões concluídas": **`8ae243468b5da06e7bd0e4c806000000`**
   (soma = 445, batendo com o print). Por classe: Gunner 127 + Driller 70 +
   Engineer 114 + Scout 134 = 445. ✔ (Os GUIDs de classe aqui batem com `CLASS_GUIDS`.)
-- Existem **~93 stats distintas** nesse bloco (334 entradas / ~4 por stat). Só
-  mapeamos a de missões concluídas por enquanto; o mesmo método (somar por
-  `MissionStatID` e casar com um número conhecido) serve pra mapear as outras.
-- Candidatos a "Solo Missions Completed" (28 no print): há 2 stats somando 28
-  (`9d293c4a…` e `000efb43…`) — ambíguo sem confirmação, não mapeado ainda.
+- Existem **95 stats distintas** nesse bloco. **TODAS estão mapeadas agora** (04/08/2026,
+  via `.pak` — ver seção 4.4). Missões por classe: Gunner 127 + Driller 70 + Engineer 121
+  + Scout 137 = **455** ✔ (o save cresceu de 445→455).
 
 Isso vive em `parse_mission_stat(data, stat_guid)` + a constante
 `MISSIONS_COMPLETED_STAT` no parser. O `parse_save` devolve `missions_completed`.
@@ -158,6 +156,35 @@ tem: `Weapons` (**160 overclocks**, com arma/classe/nome/custo), e cosméticos (
   devolve `forged_schematics` e `vanity_items`. O **dashboard lê o save ATUAL** (não o
   banco) e cruza com o `guids.json` na aba "⚙️ Overclocks".
 
+### 4.4 As 95 mission stats, mapeadas de vez (via `.pak`) ⭐
+
+O "casar pelo número" da 4.2 tem um teto: **valores duplicados = ambiguidade irresolvível**
+(ex.: 3 stats valiam 41). Pra resolver de vez, fomos aos **arquivos do jogo**. A explicação
+didática (do zero) está no `logica.md` §11; aqui, o resumo técnico (04/08/2026):
+
+- **`Cargo Crates` e `Lost Equipment` NÃO existem como stat.** A tela do jogo não os mostra
+  e não há asset `MS_*` deles (os hits de ASCII no pak eram falas de anão). **Não dá** pra
+  rastrear — resposta honesta e demonstrável.
+- **Cada stat é um asset** em `/Game/GameElements/KPI/MissionStats/MS_*` (ex.:
+  `MS_Secondary_ApocaBloom`, `MS_Killed_TotalEnemies`), que contém o GUID da stat.
+- **⚠️ Alinhamento do GUID no save (bug sutil):** o GUID verdadeiro são os **16 bytes que
+  terminam 4 bytes ANTES da FString `"Value"`** (`data[v-20:v-4]`). Os 4 bytes finais
+  (`06000000`) são o **prefixo de tamanho (int32=6)** da palavra "Value", NÃO fazem parte do
+  GUID. Ancorar errado fazia TODO GUID "terminar em 06000000".
+- **O pak** (`FSD-WindowsNoEditor.pak`, 2.4 GB) é **UE4 pak v11, compressão Zlib** (sem
+  Oodle) → leitura em **Python puro** (`zlib`), sem ferramenta externa. O
+  `tools/extract_mission_stats.py` parseia o índice, acha os `MS_*`, descomprime e **cruza
+  cada GUID do asset com os GUIDs do save** (o save é o gabarito) → 95/95 sem chute.
+  Validações: `MS_TimePlayed` = 751632 s = 8d16h47m12s ✔; `MS_DistanceTravelled` =
+  203212652 cm = 2032.1 km ✔; Scout+Gunner+Eng+Driller = 455 ✔.
+- Vira **`mission_stats.json`** (`guid → {category, label}`), o análogo do `all_drg_enemies.json`.
+  Categorias: Overview, Mission Type, Biome, Class, Hazard, Secondary, Warning, Economy,
+  Forging, Progression, Misc.
+- **No dashboard:** aba **"🎖️ Missões & Stats"** que lê o save ATUAL (cacheado, igual os
+  overclocks — NÃO é histórico) via `parse_mission_stats(data)` + cruza com o JSON. Métricas
+  gerais + gráficos por categoria + tabelas de economia/forja/progressão. Bilíngue (labels de
+  stat ficam em inglês, como nomes de bicho/arma).
+
 ---
 
 ## 5. Os arquivos, um por um
@@ -173,6 +200,7 @@ Peças principais (funções):
 - `parse_classes(data)` — lê os 4 blocos de classe e devolve level/promoções por classe (ver seção 4.1).
 - `level_from_xp(xp)` — converte o XP de uma classe no level 1–25 (tabela `CLASS_XP_TABLE`).
 - `parse_mission_stat(data, stat_guid)` — soma o `Value` de um `MissionStatID` entre as classes (ver seção 4.2). Usado pra `missions_completed`.
+- `parse_mission_stats(data)` — soma TODAS as 95 mission stats de uma vez, devolve `{guid: int}` (usa o alinhamento correto do GUID, ver seção 4.4). Usado pela aba "🎖️ Missões & Stats".
 - `parse_guid_array(data, name)` — lê um `ArrayProperty` de `StructProperty(Guid)` e devolve a lista de GUIDs em hex MAIÚSCULO. Usado pra `ForgedSchematics` e `UnLockedVanityItemIDs` (ver seção 4.3).
 - `parse_save(path, enemy_names=None)` — junta tudo e devolve um **dicionário** com: `player_rank`, `promotions`, `classes`, `level` (=rank), `credits`, `perk_points`, `games_played` (=partidas jogadas, 504), `missions_completed` (=missões concluídas, 445), `times_retired` (=promoções), `playtime_seconds`, `total_kills`, `species_count`, `kills_by_guid`, `kills_named`, `resources_by_guid`, `forged_schematics` (overclocks+cosm. forjados), `vanity_items` (cosméticos).
 - `KNOWN_ENEMIES` — mapa mínimo de GUID→nome embutido (só o Grunt confirmado; o resto vem do `all_drg_enemies.json`).
@@ -197,6 +225,20 @@ Um dicionário grande `{ categoria: { "GUID": {meta} } }` (ver seção 4.3). Cat
 Headwear/Moustache/Beard/Sideburns`, `Victory Moves`, `Weapon Skins`). É o "Y" do
 comparativo — o save só diz o que você TEM; este arquivo diz o TOTAL. GUID casa em hex
 MAIÚSCULO com o `ForgedSchematics` do save.
+
+### `mission_stats.json` — a tabela de referência das 95 mission stats **(NOVO ✅)**
+Um dicionário `{ "guid": {"category": ..., "label": ...} }` com as **95 estatísticas** do
+bloco `MissionStatsSave` (ver seção 4.4). Montado por engenharia reversa do `.pak`
+(`tools/extract_mission_stats.py`), cruzando o GUID de cada asset `MS_*` com os GUIDs do
+save. É o "nome" das stats — o save só tem o GUID e o valor. Usado pela aba "🎖️ Missões &
+Stats" do dashboard.
+
+### `tools/extract_mission_stats.py` — o gerador do `mission_stats.json` (engenharia reversa) **(NOVO ✅)**
+Lê o `FSD-WindowsNoEditor.pak` (UE4 pak v11, Zlib) em **Python puro** (só `zlib`, sem
+ferramenta externa): parseia o índice do pak, acha os assets `MS_*`, descomprime e casa cada
+GUID do asset com os GUIDs do save (o save é o gabarito). Reusa `snapshot._steam_libraries`
+pra achar o pak em qualquer PC. Re-rodar regenera o `mission_stats.json` do zero. Detalhes do
+formato do pak no `tools/extract_mission_stats.md`. Ver seção 4.4 e `logica.md` §11.
 
 ### `snapshot.py` — tira a "foto" e guarda no banco
 **Função:** rodar o parser, pegar os números e gravar UMA foto POR DIA no banco SQLite
@@ -399,16 +441,19 @@ Ideias por trás disso (importantes):
 - [x] **Plug-and-play em qualquer PC** — `find_save` acha o DRG em qualquer drive (registro Steam + `libraryfolders.vdf`, via `_steam_libraries`). Caminhos todos auto-localizados (`%~dp0`, `os.chdir`, fuso automático). Único pré-req: Python instalado. Testado (encontra bibliotecas em outros drives).
 - [x] **GitHub-ready** — `README.md` (visão geral + instalação + créditos), `logica.md` (a engenharia reversa explicada do zero, byte por byte) e `.gitignore` (ignora `drg_stats.db`, `watcher.log`, `*.sav`, `__pycache__`, `mint-master/`, screenshots pessoais).
 - [x] **Auto-atualização (perto de automático)** — `atualizar.bat` (duplo clique → `git pull`, com checagem de Git/clone) + aviso **🔔 atualização disponível** na sidebar do dashboard (`checar_atualizacao()`, cacheado 1x/hora, falha em silêncio). Preserva os dados via `.gitignore`. Documentado no `README.md` (EN/PT, seção "Como atualizar"). Ver seção 5/7. Testado (detecta clone, `behind`, e sintaxe do dashboard OK).
-- [x] **Bilíngue (EN/PT)** — `README.md` e `logica.md` têm inglês primeiro, português depois. **Comentários e docstrings do código traduzidos pra inglês** (parser, snapshot, watcher, dashboard, `.bat`s). Os textos de TELA (UI do dashboard, prints, log do watcher, echos dos `.bat`) seguem em PT de propósito. A documentação técnica interna segue em PT. O `.bat` do painel se chama `abrir_dashboard.bat` (minúsculo).
+- [x] **Bilíngue (EN/PT)** — `README.md` e `logica.md` têm inglês primeiro, português depois. **Comentários e docstrings do código traduzidos pra inglês** (parser, snapshot, watcher, dashboard, `.bat`s). A documentação técnica interna segue em PT. O `.bat` do painel se chama `abrir_dashboard.bat` (minúsculo).
+- [x] **Dashboard bilíngue com seletor de idioma (03/08/2026)** — a UI abre em **English** (padrão) e tem o seletor **🌐 Language / Idioma** na sidebar (EN/PT ao vivo). Motivo: usuários do Reddit reclamaram da UI só em PT. Textos no dict `TEXTS` (EN/PT); formatadores de número/data trocam por idioma. Testado (AppTest EN/PT).
+- [x] **Fix Naedocyte Hatchling (03/08/2026)** — o GUID `d805ddff…` estava rotulado "Cave Cruiser" (deduzido) mas é a **Naedocyte Hatchling** (Cave Cruiser é dócil, sem kills). Corrigido no `all_drg_enemies.json` + backfill no banco. Ver seção 5.
+- [x] **As 95 mission stats mapeadas via `.pak`** (04/08/2026) — `mission_stats.json` + `tools/extract_mission_stats.py` (leitor de pak UE4 v11/Zlib em Python puro) + `parse_mission_stats()` no parser + aba **"🎖️ Missões & Stats"** bilíngue. Alinhamento correto do GUID (`data[v-20:v-4]`). Confirmado que Cargo Crates/Lost Equipment não existem como stat. Ver seção 4.4. Testado (AppTest EN/PT).
 
 **A fazer:**
 - [ ] Cosméticos: contagem confiável (mapear as outras fontes de vanity além de `UnLockedVanityItemIDs`).
 - [ ] Cravar a linha exata das Launch Options da Steam (testar aspas/`%command%`) e um passo-a-passo no README.
-- [ ] Confirmar no bestiário os 3 nomes deduzidos (Naedocyte Cave Cruiser / Maggot / Silicate Harvester).
-- [ ] (Opcional) Mapear "Solo Missions Completed" (28) e outras stats do `MissionStatsSave` (seção 4.2).
+- [ ] Confirmar no bestiário os 2 nomes deduzidos restantes (Maggot / Silicate Harvester). (Naedocyte "Cave Cruiser" já resolvido: era Hatchling.)
+- [x] ~~Mapear outras stats do `MissionStatsSave`~~ — FEITO, as 95 (seção 4.4).
 - [ ] (Opcional) Tabela `resources` no banco, mesmo padrão do `kills`.
 - [ ] (Opcional) Agendar o `snapshot.py` (Task Scheduler no Windows / cron ou systemd no Arch).
-- [ ] (Futuro) Mapear GUID→nome pelos arquivos `.pak` do jogo pra resolver os pares ambíguos de vez.
+- [x] ~~Mapear GUID→nome pelos arquivos `.pak`~~ — FEITO pras mission stats (seção 4.4); ainda dá pra usar a mesma técnica nos pares ambíguos de bichos.
 - [ ] README caprichado contando a história (engenharia reversa → ETL → dashboard).
 
 ---
