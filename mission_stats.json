@@ -1,0 +1,382 @@
+{
+  "00b4ce05ae3fb64faad54777f20fc3ba": {
+    "category": "Progression",
+    "label": "Weekly Promotion Assignments"
+  },
+  "fb6def697d7dc446945be089ff5757b0": {
+    "category": "Progression",
+    "label": "Facility Unlock Assignment"
+  },
+  "a5d5468d10057f4e89dc740e6a29e1f1": {
+    "category": "Progression",
+    "label": "Weapon License Assignments"
+  },
+  "25b829f99213ee4a9869ec16569d241f": {
+    "category": "Economy",
+    "label": "Total Credits Tipped"
+  },
+  "3796ad72af4695419f71d5a88c485a64": {
+    "category": "Misc",
+    "label": "Bone Fragments (S06)"
+  },
+  "f165765dd92a2341a956b7ab7e342570": {
+    "category": "Biome",
+    "label": "Azure Weald"
+  },
+  "c8d72ca0bd467d4f92bee1cb8f09975f": {
+    "category": "Biome",
+    "label": "Crystalline Caverns"
+  },
+  "527833fc053c9e47a20c71c739279263": {
+    "category": "Progression",
+    "label": "Deep Dives Completed"
+  },
+  "ac1fc6081fe17d4daaeffc8c64aad9c8": {
+    "category": "Progression",
+    "label": "Best Deep Dive Time"
+  },
+  "007683095fcff84595d6475228d78133": {
+    "category": "Mission Type",
+    "label": "Deep Scans"
+  },
+  "c4897a0f90059c41a5e1b778fcf859af": {
+    "category": "Class",
+    "label": "Driller"
+  },
+  "39f41f8b87eed544b757ad3084db4a56": {
+    "category": "Mission Type",
+    "label": "Egg Hunts"
+  },
+  "ff10aa15b8bb8f49983b634c1dfe2cc7": {
+    "category": "Mission Type",
+    "label": "Eliminations"
+  },
+  "05fae951892e934f8ca22582e4874338": {
+    "category": "Progression",
+    "label": "Elite Deep Dives Completed"
+  },
+  "f7203594bca8654b8749b62a5d683aa2": {
+    "category": "Progression",
+    "label": "Best Elite Deep Dive Time"
+  },
+  "d6e1ba9c5d23fa4ab36466778f13da71": {
+    "category": "Class",
+    "label": "Engineer"
+  },
+  "d786609e70dcf747ad2bbfe093708618": {
+    "category": "Mission Type",
+    "label": "Escort Duties"
+  },
+  "4439a4587274144d8ea7871d78bf413f": {
+    "category": "Mission Type",
+    "label": "Industrial Sabotage"
+  },
+  "67b04c64c431c44297b3a24820163e54": {
+    "category": "Biome",
+    "label": "Fungus Bogs"
+  },
+  "22249055a35db74eb1fe1f32a5047593": {
+    "category": "Class",
+    "label": "Gunner"
+  },
+  "b0ab4b4701a5594da74b7a19419604cb": {
+    "category": "Hazard",
+    "label": "Hazard 3"
+  },
+  "cb53ca795698c64d8e0e017737a2fe88": {
+    "category": "Hazard",
+    "label": "Hazard 5"
+  },
+  "a128c89baecd5b4ca55e591ea1657604": {
+    "category": "Mission Type",
+    "label": "Heavy Extractions"
+  },
+  "06ae65fe33c85146a8c0d80304e51e3a": {
+    "category": "Biome",
+    "label": "Hollow Bough"
+  },
+  "baaceec8b58dfd48846bd67c16d56b90": {
+    "category": "Biome",
+    "label": "Glacial Strata"
+  },
+  "f782a6a2aeffae418731fe13541fd8cf": {
+    "category": "Biome",
+    "label": "Dense Biozone"
+  },
+  "86fd5f6246223f4e8abe7bb6554d049e": {
+    "category": "Biome",
+    "label": "Magma Core"
+  },
+  "a8b3d4e6f87eb549bbdfd70959dc18d4": {
+    "category": "Mission Type",
+    "label": "Mining Expeditions"
+  },
+  "4d9fe46706252a42ab5ced528f37b437": {
+    "category": "Biome",
+    "label": "Ossuary Depths"
+  },
+  "fd41463ad3932f4ba378132078b3890f": {
+    "category": "Mission Type",
+    "label": "Point Extractions"
+  },
+  "b787a9dfd242934786b39534939d3e17": {
+    "category": "Biome",
+    "label": "Radioactive Exclusion Zone"
+  },
+  "b8a82208f7d6ca45a97ca5c44023e640": {
+    "category": "Mission Type",
+    "label": "On-Site Refining"
+  },
+  "cadd2557633002469cce14ba34dcda05": {
+    "category": "Biome",
+    "label": "Salt Pits"
+  },
+  "c282e05dcd38e5468ac2ba9a8c35de5e": {
+    "category": "Mission Type",
+    "label": "Salvage Operations"
+  },
+  "66f2d5273af4cb41bf9bf65907671d9a": {
+    "category": "Biome",
+    "label": "Sandblasted Corridors"
+  },
+  "e3e825fc837f354889075523949c2e1a": {
+    "category": "Class",
+    "label": "Scout"
+  },
+  "3c419ab137e6724b9d1756eb82ec84c9": {
+    "category": "Progression",
+    "label": "Season Challenges Completed"
+  },
+  "ae890e3a5304604da04cc52959de8a77": {
+    "category": "Progression",
+    "label": "Season Events Completed"
+  },
+  "1303e451de761d4796cd0bd5e2a682e0": {
+    "category": "Overview",
+    "label": "Secondary Missions Completed"
+  },
+  "75381c780da5e640b49d7f1fffa098ef": {
+    "category": "Overview",
+    "label": "Assignment Missions Completed"
+  },
+  "b6c420076d16cc4aa68fa7950cdec328": {
+    "category": "Overview",
+    "label": "Assignments Completed"
+  },
+  "d839bca48ae243468b5da06e7bd0e4c8": {
+    "category": "Overview",
+    "label": "Missions Completed"
+  },
+  "53f7fe1c000efb439e4d0e11698887ec": {
+    "category": "Overview",
+    "label": "Solo Missions Completed"
+  },
+  "11871ba21556ee41b4564d82cb6e6409": {
+    "category": "Misc",
+    "label": "Tutorials Completed"
+  },
+  "f59d016eb340534a9b392ac17f734598": {
+    "category": "Mission Type",
+    "label": "Core Rifts Closed"
+  },
+  "7c278cd58280dd44972fa08b283906c7": {
+    "category": "Forging",
+    "label": "Cosmetic Mastery Levels"
+  },
+  "0d3fa6b2aa694f45808ac6cc42fe1616": {
+    "category": "Forging",
+    "label": "Cosmetics Forged"
+  },
+  "ca6cc44c8148554dbd469f2224870718": {
+    "category": "Forging",
+    "label": "Forging Mastery Levels"
+  },
+  "3a0ceefa38e9dc49bc0bf2b80d387fae": {
+    "category": "Forging",
+    "label": "Weapon Overclocks Forged"
+  },
+  "ef9bfe8e66c7064fbcbf260ff058fd39": {
+    "category": "Forging",
+    "label": "Weapon Skins Forged"
+  },
+  "b770e8ab5f0ffa48aa764d839c092f5d": {
+    "category": "Misc",
+    "label": "Data Cells Collected"
+  },
+  "fcc4bdafb0400b4caba6b30c506e5b19": {
+    "category": "Overview",
+    "label": "Total Downs"
+  },
+  "8fa187f7d6c09a4bb2128d39ca723e36": {
+    "category": "Overview",
+    "label": "Downs While Drunk"
+  },
+  "f803c36f7517bf479202063bbe5b68c6": {
+    "category": "Overview",
+    "label": "Distance Travelled"
+  },
+  "da7ff06c61da374da5f526e10a9b0629": {
+    "category": "Economy",
+    "label": "Special Beers Unlocked"
+  },
+  "111bdae028b21c409579d6f7ff5be606": {
+    "category": "Economy",
+    "label": "Beverages Consumed"
+  },
+  "2e4784bfaff4614cb340dea1b8611743": {
+    "category": "Economy",
+    "label": "Beverage Rounds Ordered"
+  },
+  "34b679e5fc836d458c5e839d9075c06e": {
+    "category": "Economy",
+    "label": "Equipment Upgrades Purchased"
+  },
+  "ab69dd4c2fb28842a666841e9b43cb8a": {
+    "category": "Economy",
+    "label": "Credits Spent on Jetty Boot"
+  },
+  "e77ad95bdfa17d438e5bfe1ca6bf690a": {
+    "category": "Overview",
+    "label": "Enemies Killed"
+  },
+  "f86b76d826b95b45a16467936927db1b": {
+    "category": "Overview",
+    "label": "Character Level-Ups"
+  },
+  "d0fc16584756b541b8708ffc3c2ac6a2": {
+    "category": "Overview",
+    "label": "Minerals Mined"
+  },
+  "5c98d1fe116d004da8d159bd322386ff": {
+    "category": "Misc",
+    "label": "Plague Hearts (S04)"
+  },
+  "aefccea9b9762b418b7402de9b27117a": {
+    "category": "Misc",
+    "label": "Plague Cleaned"
+  },
+  "bdcc3f1f8121004f95b22c23d1881082": {
+    "category": "Secondary",
+    "label": "Apoca Bloom"
+  },
+  "f06c98a0b831064f814768b1777bcdff": {
+    "category": "Secondary",
+    "label": "Boolo Cap"
+  },
+  "a9610daa691fe84aadaee9fd5c750c76": {
+    "category": "Secondary",
+    "label": "Bha Barnacle"
+  },
+  "fd8044909d293c4abb6a30c4c8d16c65": {
+    "category": "Secondary",
+    "label": "Glyphid Eggs"
+  },
+  "e66bb4ba96efe1458bda728f1005013e": {
+    "category": "Secondary",
+    "label": "Dystrum"
+  },
+  "c375787852e61f4bae94b13995d73bc4": {
+    "category": "Secondary",
+    "label": "Ebonut"
+  },
+  "d6845a5cfad9e6439cf98a66d80c5d73": {
+    "category": "Secondary",
+    "label": "Gunk Seed"
+  },
+  "56ae355d474ec94b9c7eb4eb39d786b0": {
+    "category": "Secondary",
+    "label": "Fossils"
+  },
+  "fc637f52ca5f664998ccc36dfc83a388": {
+    "category": "Secondary",
+    "label": "Hollomite"
+  },
+  "6c4d21996eb2644690dcd3618b5b9c27": {
+    "category": "Secondary",
+    "label": "Fester Fleas"
+  },
+  "57f21f5d735f1944b08a63395ccd6da7": {
+    "category": "Overview",
+    "label": "Mission Time"
+  },
+  "dc257ebd58cfd045abcc98c930eaed5e": {
+    "category": "Economy",
+    "label": "Accessory Items Purchased"
+  },
+  "c863ff5dd6d4b94d8c171f20e164b5c3": {
+    "category": "Warning",
+    "label": "Duck and Cover"
+  },
+  "b2f6d678359a8a4a9f5b54f90b9d1d39": {
+    "category": "Warning",
+    "label": "Cave Leech Cluster"
+  },
+  "4b5cae9d52e2b349b2f259b70ce8be1c": {
+    "category": "Warning",
+    "label": "Core Corruption"
+  },
+  "1e703d2914ea704a91674e765e705119": {
+    "category": "Warning",
+    "label": "Double Warning"
+  },
+  "c44aa131f5b988438a19ebadf8d3a354": {
+    "category": "Warning",
+    "label": "Exploder Infestation"
+  },
+  "0b5091cc41a0b548b7f26d35fc87a4a8": {
+    "category": "Warning",
+    "label": "Haunted Cave"
+  },
+  "ac92c0f444d4954b99ee8e3d0e0d8c3e": {
+    "category": "Warning",
+    "label": "Elite Threat"
+  },
+  "d1dab4224a7bca4393275e1efdb285af": {
+    "category": "Warning",
+    "label": "Parasites"
+  },
+  "ddf8ebb0b8558047a286d72057aadf33": {
+    "category": "Warning",
+    "label": "Lethal Enemies"
+  },
+  "ed18ff9ba468d842905bdc5d6a3af753": {
+    "category": "Warning",
+    "label": "Mactera Plague"
+  },
+  "85beb1807e055947aa4b5e43a2372374": {
+    "category": "Warning",
+    "label": "Low Oxygen"
+  },
+  "1705bd8e32402e4e8a4dcda5e21a4974": {
+    "category": "Warning",
+    "label": "Shield Disruption"
+  },
+  "e60541cdf7be654ca7c78df075bcd925": {
+    "category": "Warning",
+    "label": "Pit Jaw Colony"
+  },
+  "1fe5c65555717c4a8ecf25a7dea1a71e": {
+    "category": "Warning",
+    "label": "Lithophage Outbreak"
+  },
+  "234d524a08825842a100bcdd77f20476": {
+    "category": "Warning",
+    "label": "Regenerative Bugs"
+  },
+  "3e11ee7791d88346bd0e1324827c04ef": {
+    "category": "Warning",
+    "label": "Rival Presence"
+  },
+  "1fbb5aefa41b9d469cfd00a899401bda": {
+    "category": "Warning",
+    "label": "Ebonite Outbreak"
+  },
+  "a72ef40e61b7104cb2199b81dceb307e": {
+    "category": "Warning",
+    "label": "Scrab Nesting Grounds"
+  },
+  "2b58f4d1b7fecf4db68169e50bc63cc3": {
+    "category": "Warning",
+    "label": "Swarmageddon"
+  }
+}

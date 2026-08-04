@@ -242,6 +242,34 @@ def parse_mission_stat(data: bytes, stat_guid: str) -> int:
     return round(total) if achou else 0
 
 
+def parse_mission_stats(data: bytes) -> dict:
+    """
+    Sum EVERY MissionStat's Value across the 4 classes -> {guid_hex: int}.
+
+    Generalizes parse_mission_stat to pull ALL stats at once. We anchor on the
+    "Value" FString of each Counters entry; the stat's 16-byte Guid is the bytes
+    ending 4 bytes BEFORE it -- the trailing 4 bytes are the int32 length prefix of
+    "Value" (=6), NOT part of the Guid. (Reverse-engineered from the game's
+    /Game/GameElements/KPI/MissionStats/MS_* assets; see mission_stats.json.)
+    We bound the FloatProperty lookup to a few bytes so unrelated "Value" strings
+    elsewhere in the save can't produce bogus entries.
+    """
+    tot: dict[str, float] = {}
+    pos = 0
+    while True:
+        v = data.find(b"Value\x00", pos)
+        if v < 0:
+            break
+        pos = v + 1
+        f = data.find(b"FloatProperty\x00", v, v + 40)   # must be a stat entry
+        if f < 0 or v < 20:
+            continue
+        guid = data[v - 20:v - 4].hex()                  # 16-byte Guid (see docstring)
+        off = f + len(b"FloatProperty\x00")
+        tot[guid] = tot.get(guid, 0.0) + struct.unpack_from("<f", data, off + 8 + 1)[0]
+    return {g: round(x) for g, x in tot.items()}
+
+
 def level_from_xp(xp: int) -> int:
     """Convert a class's accumulated XP into the matching level 1..25."""
     lvl = 1
