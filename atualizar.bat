@@ -1,61 +1,35 @@
 @echo off
 REM ==========================================================================
 REM  atualizar.bat  --  DOUBLE-CLICK here to update the project.
-REM  It downloads the newest code from GitHub (git pull) WITHOUT touching your
-REM  personal data: drg_stats.db, watcher.log and the .sav files are gitignored,
-REM  so your history/snapshots are safe.
-REM  Requirements: Git installed AND the project obtained via "git clone"
-REM  (the ZIP download does NOT support updates).
+REM  It downloads the newest code from GitHub and overlays it, WITHOUT touching
+REM  your personal data (drg_stats.db, *.sav and watcher.log are not in the repo
+REM  ZIP, so the update never overwrites them).
+REM  NO git needed anymore -- only Python (already required by the project).
+REM
+REM  MAINTAINER NOTE: the updater (atualizar.py) overwrites THIS file. To stay
+REM  self-modify-safe, the last line runs Python and then "& exit /b" quits cmd
+REM  in the SAME already-parsed line -- so cmd never re-reads this file after the
+REM  download. atualizar.py does its own "press Enter" pause. Keep it that way.
 REM ==========================================================================
 title DRG Stats Tracker - Atualizar
 cd /d "%~dp0"
 
-echo.
-echo   ============================================
-echo      DRG Stats Tracker - procurando updates...
-echo   ============================================
-echo.
-
-REM --- Is Git installed? ---
-where git >nul 2>nul
-if errorlevel 1 (
-    echo   [ERRO] Git nao encontrado.
-    echo   Instale o Git em https://git-scm.com/download/win
-    echo   ^(depois de instalar, feche e abra esta janela de novo^)
+REM --- Find Python (try the "py" launcher, then "python") ---
+set "PY="
+where py >nul 2>nul && set "PY=py"
+if not defined PY (
+    where python >nul 2>nul && set "PY=python"
+)
+if not defined PY (
+    echo.
+    echo   [ERRO] Python nao encontrado.
+    echo   Instale o Python 3.10+ em https://www.python.org/downloads/
+    echo   IMPORTANTE: marque a caixa "Add Python to PATH" durante a instalacao.
     echo.
     pause
     exit /b 1
 )
 
-REM --- Is this folder a git clone? (ZIP downloads are not) ---
-git rev-parse --is-inside-work-tree >nul 2>nul
-if errorlevel 1 (
-    echo   [ERRO] Esta pasta nao e um clone do repositorio.
-    echo   Voce provavelmente baixou o ZIP. Para receber atualizacoes,
-    echo   pegue o projeto assim ^(uma vez so^):
-    echo       git clone https://github.com/gilas-byte/DRG-Stats-Tracker
-    echo.
-    pause
-    exit /b 1
-)
-
-echo   Baixando as novidades do GitHub...
-echo.
-git pull
-if errorlevel 1 (
-    echo.
-    echo   [ERRO] Nao consegui atualizar. Pode ser falta de internet,
-    echo   voce editou algum arquivo do projeto ^(gerando conflito^)
-    echo   ou o projeto esta totalmente atualizado.
-    echo.
-    pause
-    exit /b 1
-)
-
-echo.
-echo   ============================================
-echo      Pronto! Projeto atualizado.
-echo      ^(Se o painel estava aberto, feche e abra de novo.^)
-echo   ============================================
-echo.
-pause
+REM --- Run the updater. Keep "& exit /b" so cmd quits without re-reading this
+REM --- (possibly just-overwritten) file. Nothing may go after this line.
+%PY% atualizar.py & exit /b
