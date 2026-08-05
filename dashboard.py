@@ -26,7 +26,6 @@ project files: drg_stats.db, drg_save_parser.py, snapshot.py.
 import sys
 import json
 import sqlite3
-import subprocess
 from pathlib import Path
 from datetime import datetime
 from collections import defaultdict
@@ -38,6 +37,7 @@ import streamlit as st
 # snapshot.py is part of the same project: we reuse the logic of finding the save and
 # storing the snapshot, so the "Update now" button works without a terminal.
 import snapshot
+import atualizar                 # git-free update check/apply (GitHub ZIP + API)
 import drg_save_parser as drg   # to read overclocks/cosmetics straight from the current save
 
 # ----------------------------------------------------------------------------
@@ -85,9 +85,8 @@ TEXTS = {
         # sidebar
         "sidebar_header": "⚙️ Controls",
         "lang_label": "🌐 Language / Idioma",
-        "upd_available": "🔔 An update is available ({n} {word})!\n\n"
-                         "Double-click **atualizar.bat** (or run `git pull`) and reopen the panel.",
-        "upd_word_one": "change", "upd_word_many": "changes",
+        "upd_available": "🔔 An update is available!\n\n"
+                         "Double-click **atualizar.bat** and reopen the panel.",
         "upd_latest": "✅ You're on the latest version",
         "update_now": "📸 Update now",
         "update_now_help": "Reads the game save and stores a new snapshot",
@@ -99,6 +98,7 @@ TEXTS = {
         "summary": "📊 Summary — {when}",
         "m_rank": "Account rank",
         "m_kills": "Total kills",
+        "m_kills_ms": "Enemies killed (mission stats)",
         "m_credits": "Credits",
         "m_promos": "Promotions",
         "m_missions": "Missions completed",
@@ -122,6 +122,7 @@ TEXTS = {
         "time_playtime": "**Playtime (seconds)**",
         # chart labels
         "ax_kills": "Kills",
+        "ax_missions": "Missions",
         "ax_credits": "Credits",
         "ax_rank": "Rank",
         "ax_seconds": "Seconds",
@@ -174,6 +175,10 @@ TEXTS = {
         "sec_type": "Missions by type",
         "sec_class": "Missions by class",
         "sec_hazard": "Missions by hazard",
+        "hazard_note": "The game only tracks two hazard thresholds: **Hazard 3+** "
+                       "(missions completed on Hazard 3 *or higher* — so your Hazard 4 "
+                       "runs are counted in here too) and **Hazard 5**. There's no "
+                       "separate Hazard 4 stat in the save.",
         "sec_warning": "Warnings completed",
         "sec_economy": "Economy & bar",
         "sec_forging": "Forging",
@@ -188,6 +193,10 @@ TEXTS = {
         "stats_caption": "Read live from your current save and cross-referenced with the "
                          "game's own stat definitions (reverse-engineered from the .pak). "
                          "Not stored in history — it's your state right now.",
+        "overview_note": "⚠️ *Enemies killed* here is the **mission-stats (KPI)** counter, "
+                         "which the game only started tracking in a later update — so it's "
+                         "much lower than your lifetime bestiary total. For the real "
+                         "all-time kill count, see **Total kills** and the *By species* tab.",
     },
     "pt": {
         "caption": "Suas estatísticas de Deep Rock Galactic — extraídas do save, com histórico. "
@@ -203,9 +212,8 @@ TEXTS = {
         "msg_ok": "✅ Foto nova gravada (snapshot #{id})! Rock and Stone! 🪨",
         "sidebar_header": "⚙️ Controles",
         "lang_label": "🌐 Language / Idioma",
-        "upd_available": "🔔 Tem atualização disponível ({n} {word})!\n\n"
-                         "Dê duplo clique em **atualizar.bat** (ou rode `git pull`) e reabra o painel.",
-        "upd_word_one": "novidade", "upd_word_many": "novidades",
+        "upd_available": "🔔 Tem atualização disponível!\n\n"
+                         "Dê duplo clique em **atualizar.bat** e reabra o painel.",
         "upd_latest": "✅ Você está na última versão",
         "update_now": "📸 Atualizar agora",
         "update_now_help": "Lê o save do jogo e grava uma foto nova",
@@ -216,6 +224,7 @@ TEXTS = {
         "summary": "📊 Resumo — {when}",
         "m_rank": "Rank da conta",
         "m_kills": "Total de kills",
+        "m_kills_ms": "Kills (stats de missão)",
         "m_credits": "Créditos",
         "m_promos": "Promoções",
         "m_missions": "Missões concluídas",
@@ -235,6 +244,7 @@ TEXTS = {
         "time_rank": "**Rank da conta**",
         "time_playtime": "**Tempo de jogo (segundos)**",
         "ax_kills": "Kills",
+        "ax_missions": "Missões",
         "ax_credits": "Créditos",
         "ax_rank": "Rank",
         "ax_seconds": "Segundos",
@@ -283,6 +293,10 @@ TEXTS = {
         "sec_type": "Missões por tipo",
         "sec_class": "Missões por classe",
         "sec_hazard": "Missões por perigo",
+        "hazard_note": "O jogo só guarda dois limiares de perigo: **Hazard 3+** "
+                       "(missões concluídas em Hazard 3 *ou acima* — então suas partidas "
+                       "de Hazard 4 estão contadas aqui dentro) e **Hazard 5**. Não existe "
+                       "uma stat de Hazard 4 separada no save.",
         "sec_warning": "Warnings concluídos",
         "sec_economy": "Economia & bar",
         "sec_forging": "Forja",
@@ -297,6 +311,10 @@ TEXTS = {
         "stats_caption": "Lido ao vivo do seu save atual e cruzado com as definições de stat "
                          "do próprio jogo (engenharia reversa do .pak). Não é guardado no "
                          "histórico — é o seu estado de agora.",
+        "overview_note": "⚠️ *Kills* aqui é o contador das **stats de missão (KPI)**, que o "
+                         "jogo só começou a rastrear numa atualização posterior — por isso "
+                         "é bem menor que o total vitalício do bestiário. Pro número real de "
+                         "mortes de todos os tempos, veja **Total de kills** e a aba *Por espécie*.",
     },
 }
 
@@ -391,6 +409,21 @@ def fmt_horas(segundos) -> str:
     return f"{s} h"
 
 
+# Mission stats stored as a duration in SECONDS (a run timer) — shown as a clock, not a
+# raw number. Matched by their English label (stat labels stay English in both languages).
+TIME_STATS = {"Best Deep Dive Time", "Best Elite Deep Dive Time"}
+
+
+def fmt_mmss(segundos) -> str:
+    """Seconds -> a clock time: '1:30:03' (with hours) or '15:26' (mm:ss). Language-neutral."""
+    if not segundos:
+        return "—"
+    s = int(segundos)
+    h, resto = divmod(s, 3600)
+    m, seg = divmod(resto, 60)
+    return f"{h}:{m:02d}:{seg:02d}" if h else f"{m}:{seg:02d}"
+
+
 def fmt_km(cm) -> str:
     """Centimetres -> '2,032.1 km' (EN) / '2.032,1 km' (PT)."""
     if not cm:
@@ -435,14 +468,20 @@ def atualizar_agora() -> str:
 # ----------------------------------------------------------------------------
 # CHARTS (Altair)
 # ----------------------------------------------------------------------------
-def grafico_barras_especies(df: pd.DataFrame, top_n: int) -> alt.Chart:
-    """Kills-per-species ranking — horizontal bars, orange ramp (magnitude)."""
+def grafico_barras_especies(df: pd.DataFrame, top_n: int,
+                            x_label: str | None = None) -> alt.Chart:
+    """Kills-per-species ranking — horizontal bars, orange ramp (magnitude).
+
+    x_label overrides the value-axis title (defaults to "Kills"); the mission-stat
+    charts pass "Missions" so the axis doesn't wrongly read "Kills" (see grafico_categoria).
+    """
+    rotulo_x = x_label if x_label is not None else T("ax_kills")
     d = df.head(top_n).copy()
     base = alt.Chart(d).encode(
         y=alt.Y("especie:N", sort="-x", title=None,
                 axis=alt.Axis(labelColor=COR_TEXTO, labelLimit=220,
                               labelFontSize=12, domainColor=COR_GRID, ticks=False)),
-        x=alt.X("count:Q", title=T("ax_kills"),
+        x=alt.X("count:Q", title=rotulo_x,
                 axis=alt.Axis(labelColor=COR_TEXTO_FRACO, titleColor=COR_TEXTO_FRACO,
                               gridColor=COR_GRID, format="~s")),
     )
@@ -450,7 +489,7 @@ def grafico_barras_especies(df: pd.DataFrame, top_n: int) -> alt.Chart:
         # color = magnitude (single-hue sequential ramp), no legend: the bar speaks for itself.
         color=alt.Color("count:Q", scale=alt.Scale(range=RAMP_LARANJA), legend=None),
         tooltip=[alt.Tooltip("especie:N", title=T("tt_species")),
-                 alt.Tooltip("count:Q", title=T("ax_kills"), format=",")],
+                 alt.Tooltip("count:Q", title=rotulo_x, format=",")],
     )
     # value label right at the bar's tip (readable without hovering)
     rotulos = base.mark_text(
@@ -531,7 +570,8 @@ def grafico_categoria(df: pd.DataFrame, category: str) -> alt.Chart:
     d = (df[df["category"] == category][["label", "value"]]
          .rename(columns={"label": "especie", "value": "count"})
          .sort_values("count", ascending=False))
-    return grafico_barras_especies(d, len(d))
+    # these are mission counts, not kills — override the x-axis title accordingly
+    return grafico_barras_especies(d, len(d), x_label=T("ax_missions"))
 
 
 def tabela_overclocks(ref: dict, forjados: set) -> pd.DataFrame:
@@ -636,42 +676,27 @@ if conn is None or carregar_snapshots(conn).empty:
 snaps = carregar_snapshots(conn)
 
 # --------------------------- UPDATE CHECK ----------------------------------
-# Windows: keep the git subprocess from flashing a console window (see CLAUDE.md
-# gotcha). On other OSes the flag is 0 (no-op).
-_SEM_JANELA = 0x08000000 if sys.platform == "win32" else 0
-
-
-@st.cache_data(ttl=3600)   # ask GitHub at most once per hour (fetch is the slow bit)
+@st.cache_data(ttl=3600)   # ask GitHub at most once per hour (the API call is the slow bit)
 def checar_atualizacao() -> dict:
-    """Ask GitHub (via git) whether there's a newer version of the project.
+    """Ask GitHub (via its public API, NO git) whether newer code exists.
 
-    Returns {"estado": "desatualizado"|"atualizado"|"indisponivel", "atras": N}.
-    Fails SILENTLY ("indisponivel") when git is missing, this isn't a git clone
-    (a ZIP download), or there's no network — the panel must never scare the user.
+    Compares the branch's latest commit SHA with a local marker (`.update_check`)
+    recording the SHA this copy is synced to. Works the SAME for git clones and
+    ZIP downloads. Returns {"estado": "desatualizado"|"atualizado"|"indisponivel"}.
+    Fails SILENTLY ("indisponivel") on any network/error — the panel must never
+    scare the user. (Reuses atualizar.py so the check and the apply agree.)
     """
-    def git(*args):
-        return subprocess.run(
-            ["git", *args], cwd=Path(__file__).parent,
-            capture_output=True, text=True, timeout=10,
-            creationflags=_SEM_JANELA,
-        )
     try:
-        # Is this folder a git clone at all? (ZIP downloads are not.)
-        r = git("rev-parse", "--is-inside-work-tree")
-        if r.returncode != 0 or r.stdout.strip() != "true":
-            return {"estado": "indisponivel"}
-        # Download the newest refs from GitHub (info only — no merge, no file change).
-        if git("fetch", "--quiet").returncode != 0:
-            return {"estado": "indisponivel"}   # no network / no remote
-        # Which branch do we track? (usually origin/main)
-        up = git("rev-parse", "--abbrev-ref", "--symbolic-full-name", "@{u}")
-        upstream = up.stdout.strip() if up.returncode == 0 else "origin/main"
-        # How many commits is our local copy BEHIND the remote?
-        cnt = git("rev-list", "--count", f"HEAD..{upstream}")
-        if cnt.returncode != 0:
-            return {"estado": "indisponivel"}
-        atras = int(cnt.stdout.strip() or 0)
-        return {"estado": "desatualizado" if atras else "atualizado", "atras": atras}
+        sha = atualizar.sha_remota(timeout=10)
+        if not sha:
+            return {"estado": "indisponivel"}       # no network / API hiccup
+        local = atualizar.versao_local()
+        if local is None:
+            # First run on this machine: baseline to the current remote so we
+            # don't nag right away; we'll nag only when a NEWER commit lands.
+            atualizar.gravar_marcador(sha)
+            return {"estado": "atualizado"}
+        return {"estado": "atualizado" if local == sha else "desatualizado"}
     except Exception:
         return {"estado": "indisponivel"}
 
@@ -686,9 +711,7 @@ with st.sidebar:
     # Update notification: warns (once/hour) when the GitHub repo has newer code.
     _upd = checar_atualizacao()
     if _upd["estado"] == "desatualizado":
-        _n = _upd["atras"]
-        _word = T("upd_word_one") if _n == 1 else T("upd_word_many")
-        st.warning(T("upd_available", n=_n, word=_word))
+        st.warning(T("upd_available"))
     elif _upd["estado"] == "atualizado":
         st.caption(T("upd_latest"))
 
@@ -844,13 +867,17 @@ with aba_stats:
         # --- Overview tiles (special formatting for distance/time) ---
         st.markdown("### " + T("sec_overview"))
         o1, o2, o3, o4, o5, o6 = st.columns(6)
-        o1.metric(T("m_kills"), fmt_num(val_de.get("Enemies Killed")))
+        # "Enemies killed" here is the mission-stats KPI counter (started tracking in a
+        # later game update), NOT the lifetime bestiary total — labelled so it doesn't
+        # look like it contradicts "Total kills". See overview_note below.
+        o1.metric(T("m_kills_ms"), fmt_num(val_de.get("Enemies Killed")))
         o2.metric("Minerals", fmt_num(val_de.get("Minerals Mined")))
         # distance is stored in cm -> show km
         o3.metric(T("m_distance"), fmt_km(val_de.get("Distance Travelled")))
         o4.metric(T("m_missiontime"), fmt_horas(val_de.get("Mission Time")))
         o5.metric(T("m_downs"), fmt_num(val_de.get("Total Downs")))
         o6.metric(T("m_levelups"), fmt_num(val_de.get("Character Level-Ups")))
+        st.caption(T("overview_note"))
 
         # --- the bar charts the user asked for ---
         st.markdown("### " + T("sec_secondary"))
@@ -869,17 +896,20 @@ with aba_stats:
         with col_hz:
             st.markdown("### " + T("sec_hazard"))
             st.altair_chart(grafico_categoria(ms, "Hazard"), width='stretch')
+            st.caption(T("hazard_note"))
 
         st.markdown("### " + T("sec_warning"))
         st.altair_chart(grafico_categoria(ms, "Warning"), width='stretch')
 
         # --- the remaining scalar categories as compact tables ---
         def tabela_cat(category):
-            t = (ms[ms["category"] == category][["label", "value"]]
-                 .sort_values("value", ascending=False)
-                 .rename(columns={"label": T("col_stat"), "value": T("col_value")}))
-            t[T("col_value")] = t[T("col_value")].map(fmt_num)
-            return t.reset_index(drop=True)
+            sub = (ms[ms["category"] == category][["label", "value"]]
+                   .sort_values("value", ascending=False))
+            # time stats (deep-dive timers) show as a clock; everything else as a number
+            valores = [fmt_mmss(v) if lab in TIME_STATS else fmt_num(v)
+                       for lab, v in zip(sub["label"], sub["value"])]
+            return pd.DataFrame({T("col_stat"): sub["label"].values,
+                                 T("col_value"): valores}).reset_index(drop=True)
 
         cA, cB, cC = st.columns(3)
         for coluna, cat, titulo in [(cA, "Economy", "sec_economy"),
