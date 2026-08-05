@@ -1,5 +1,7 @@
 # DRG Stats Tracker — Guia Técnico do Projeto
 
+> 🌐 **Idioma / Language:** Português (este arquivo) · **[English](claude_public_en.md)**
+
 > Este arquivo é o **mapa técnico do projeto**: o que existe, como funciona e por quê.
 > As seções assumem só o que veio antes; dá pra ler na ordem. Documentação de apoio
 > (com explicações mais detalhadas) fica em `README.md` e `logica.md`.
@@ -180,6 +182,19 @@ didática (do zero) está no `logica.md` §11; aqui, o resumo técnico (04/08/20
 - Vira **`mission_stats.json`** (`guid → {category, label}`), o análogo do `all_drg_enemies.json`.
   Categorias: Overview, Mission Type, Biome, Class, Hazard, Secondary, Warning, Economy,
   Forging, Progression, Misc.
+- **⚠️ Hazard: só existem DOIS limiares, e um é cumulativo (04/08/2026).** O jogo só tem os
+  assets `MS_Completed_Hazard3` e `MS_Completed_Hazard5` — **não há Haz 1/2/4 separado**. Os
+  títulos internos do asset provam: `MS_Completed_Hazard3` = **"Missions Completed on Hazard 3
+  or Higher"** (CUMULATIVO — inclui Haz 4 e 5!), e `MS_Completed_Hazard5` = "Missions Completed
+  on Hazard 5". Por isso o "Hazard 3" batia 371 pra quem joga Haz 4. **Relabelado pra `Hazard
+  3+`** (CURATED + `mission_stats.json`) + caption `hazard_note` (EN/PT) na aba.
+- **⚠️ `MS_Killed_TotalEnemies` (KPI) ≠ total do bestiário (`EnemiesKilled`).** Dois contadores
+  distintos: bestiário = mortes **vitalícias** por espécie (soma = 191.445; Grunt = 81.049 → é
+  o "Total kills"). KPI de missão = só **65.642** (≈143 kills/missão, baixo demais). Motivo
+  provável: o sistema de MissionStats foi **adicionado numa atualização posterior**, então só
+  conta dali pra frente. **Não é bug.** Tile do Overview renomeado pra **"Enemies killed
+  (mission stats)" / "Kills (stats de missão)"** (chave `m_kills_ms`, separada de `m_kills`) +
+  caption `overview_note`.
 - **No dashboard:** aba **"🎖️ Missões & Stats"** que lê o save ATUAL (cacheado, igual os
   overclocks — NÃO é histórico) via `parse_mission_stats(data)` + cruza com o JSON. Métricas
   gerais + gráficos por categoria + tabelas de economia/forja/progressão. Bilíngue (labels de
@@ -317,15 +332,18 @@ clique → cola na Steam com Ctrl+V. Funciona em qualquer PC sem editar nada.
 > Detalhe de batch: pra imprimir um `%command%` LITERAL (sem a Steam expandir), no `.bat`
 > escreve-se `%%command%%` — o `%%` vira um `%` só na saída.
 
-### `atualizar.bat` — atualiza o projeto com um duplo clique **(FEITO ✅)**
-Um `.bat` no mesmo estilo dos outros (`cd /d "%~dp0"`, checagens amigáveis). Faz o
-**`git pull`** pra quem não quer terminal. Antes disso: confere se o **Git está
-instalado** (`where git`) e se a pasta é um **clone de verdade** (`git rev-parse
---is-inside-work-tree`) — se a pessoa baixou o **ZIP**, avisa que precisa de `git clone`.
-Ponto-chave da segurança: como `drg_stats.db`, `watcher.log` e `*.sav` estão no
-`.gitignore`, o `git pull` atualiza só o **código** e **nunca encosta nos dados
-pessoais** (histórico/fotos sobrevivem). Se der conflito (a pessoa editou um arquivo
-versionado) ou faltar internet, o `.bat` mostra o erro e não quebra nada.
+### `atualizar.py` + `atualizar.bat` — atualização SEM git **(FEITO ✅ — 04/08/2026)**
+O `atualizar.py` (só stdlib: `urllib` + `zipfile`) baixa o **ZIP do GitHub** do repositório,
+descompacta e **sobrepõe** o código por cima do projeto. **Nenhum git, nenhum pip** — Python
+já é pré-requisito. Funciona igual pra quem clonou OU baixou o ZIP.
+- **Preservação de dados automática:** o ZIP do GitHub só contém **arquivos versionados**, então
+  `drg_stats.db`, `*.sav` e `watcher.log` (gitignored) nem existem no ZIP → o overlay não os
+  toca (não depende mais do `.gitignore` na hora do update).
+- **Marcador `.update_check` (gitignored):** guarda o SHA do commit sincronizado; o dashboard
+  compara com o SHA remoto (API do GitHub) pra saber se tem novidade.
+- O `atualizar.bat` é fininho: acha o Python (`py`/`python`) e roda o `.py`. Última linha
+  `%PY% atualizar.py & exit /b` — o `& exit /b` deixa o cmd encerrar **sem reler** o `.bat`
+  (que o próprio update sobrescreve). O "Pressione Enter" fica no `.py`.
 
 ### `dashboard.py` — o painel com gráficos **(FEITO ✅)**
 Lê o `drg_stats.db` e desenha um site interativo: ranking de kills por espécie, evolução
@@ -336,12 +354,13 @@ a única dependência a instalar é o Streamlit.
 
 Tem um botão **"📸 Atualizar agora"** que lê o save e grava uma foto nova sem terminal —
 reaproveita as funções do `snapshot.py`. Também tem um **aviso de atualização do
-projeto** na sidebar: a função `checar_atualizacao()` pergunta ao GitHub (via `git fetch`
-+ `git rev-list --count HEAD..origin/main`) se há código novo e, se houver, mostra um
-**🔔 atualização disponível** mandando rodar o `atualizar.bat`. É cacheada com
-`@st.cache_data(ttl=3600)` (checa no máximo 1x/hora — o `fetch` é a parte lenta) e
-**falha em silêncio** (`"indisponivel"`) se não tiver Git, não for um clone (ZIP) ou não
-tiver internet. Detalhe importante pra estudo: **toda a explicação
+projeto** na sidebar: a função `checar_atualizacao()` (agora **sem git**) pega o SHA mais
+novo do branch pela **API do GitHub** (`atualizar.sha_remota()`) e compara com o marcador
+local `.update_check`; se diferirem, mostra **🔔 atualização disponível** mandando rodar o
+`atualizar.bat`. Na 1ª vez faz *baseline* (grava o SHA e diz "atualizado") pra não
+incomodar de cara. É cacheada com `@st.cache_data(ttl=3600)` (no máx. 1x/hora) e **falha
+em silêncio** (`"indisponivel"`) sem internet. Funciona igual pra clone e pra ZIP.
+Detalhe importante pra estudo: **toda a explicação
 linha-a-linha desse arquivo (funções, lógica, sintaxe do Streamlit e do Altair, como
 editar/reutilizar) está na [Seção 11](#11-aula-completa-o-dashboardpy-e-o-streamlit).**
 
@@ -418,8 +437,9 @@ Ideias por trás disso (importantes):
 - **Guardar em UTC, EXIBIR em local.** O `taken_at` é gravado em UTC (certo — é neutro de fuso). Mas exibir exige converter pro fuso do PC, senão o painel mostra a hora de Londres (deu 22:06 em vez de 19:06 no Brasil). O erro clássico é `pd.to_datetime(x, utc=True).dt.tz_convert(None)` — isso tira o fuso MANTENDO o relógio UTC. Certo: `.dt.tz_convert(fuso_local).dt.tz_localize(None)`, com `fuso_local = datetime.now().astimezone().tzinfo` (pega o fuso do PC sozinho, sem hardcode).
 - **`subprocess` sob `pythonw` PISCA janelinha e rouba o foco.** Rodando via `pythonw` (sem console), cada `subprocess.run(["tasklist", ...])` abre uma janela de console que aparece por um instante e **rouba o foco** da janela ativa — insuportável se o vigia checa a cada poucos segundos. Correção: passar `creationflags=CREATE_NO_WINDOW` (0x08000000) no `subprocess` (só Windows). É a constante `_SEM_JANELA` no `watcher.py`.
 - **Mod de DRG NÃO alcança o nosso pipeline.** Mods do mod.io são Blueprint numa sandbox fechada (sem I/O de arquivo, sem processo, sem rede). Só código nativo (ex.: o loader `mint`, em Rust, que injeta DLL e faz hook na engine) fura isso — pesado e frágil demais aqui. Por isso a captura automática é o `watcher.py` (externo), não um mod.
-- **Atualização só funciona pra quem fez `git clone`, não pra quem baixou o ZIP.** O ZIP é uma cópia morta — não guarda o vínculo com o repositório, então `git pull` não tem de onde puxar. Por isso o `atualizar.bat` e o `checar_atualizacao()` do dashboard SEMPRE testam `git rev-parse --is-inside-work-tree` antes; se não for clone, o `.bat` orienta a usar `git clone` e o dashboard simplesmente não mostra aviso nenhum (estado `"indisponivel"`). O que salva os dados no update é o `.gitignore`: banco/log/`.sav` não são versionados, então o `git pull` nunca os sobrescreve.
-- **`git fetch` a cada re-run do dashboard mataria a performance.** O Streamlit re-roda o script inteiro a cada interação (seção 11.0); se `checar_atualizacao()` fosse na rede toda vez, o painel travaria segundos a cada clique. Correção: `@st.cache_data(ttl=3600)` (checa no máximo 1x/hora — o `fetch` é a parte lenta) + `timeout=10` no `subprocess` + falha em silêncio se der ruim. Mesmo `creationflags=_SEM_JANELA` do `watcher.py` pra não piscar console no Windows.
+- **Atualização é SEM git (04/08/2026).** Antes dependia de `git clone` + git instalado (o leigo não tem). Agora o `atualizar.py` (Python puro) baixa o ZIP do GitHub e sobrepõe. O que salva os dados não é mais o `.gitignore` e sim o fato de que **o ZIP do GitHub só traz arquivos versionados** — banco/log/`.sav` nem estão nele. Funciona pra clone E pra ZIP.
+- **⚠️ `atualizar.bat` se auto-sobrescreve.** O `atualizar.py` reescreve o próprio `.bat` no update; a última linha `%PY% atualizar.py & exit /b` faz o cmd encerrar sem reler o arquivo (o `& exit /b` é parseado junto, antes do python rodar). Nada pode vir depois dessa linha; o pause fica no `.py`.
+- **Checagem de update em rede a cada re-run mataria a performance.** O Streamlit re-roda o script inteiro a cada interação (seção 11.0). Correção: `@st.cache_data(ttl=3600)` (no máx. 1x/hora) + `timeout` na chamada da **API do GitHub** (`urllib`, não mais `git`/`subprocess`) + falha em silêncio (`"indisponivel"`) sem internet. Na 1ª vez o `checar_atualizacao()` faz *baseline* do SHA no `.update_check` pra não mostrar 🔔 sem motivo.
 
 ---
 
@@ -440,11 +460,12 @@ Ideias por trás disso (importantes):
 - [x] **Uma foto por dia** (`tirar_snapshot` atualiza a foto de hoje em vez de somar). Banco leve, delta dia-a-dia limpo. Ver seção 6. Testado.
 - [x] **Plug-and-play em qualquer PC** — `find_save` acha o DRG em qualquer drive (registro Steam + `libraryfolders.vdf`, via `_steam_libraries`). Caminhos todos auto-localizados (`%~dp0`, `os.chdir`, fuso automático). Único pré-req: Python instalado. Testado (encontra bibliotecas em outros drives).
 - [x] **GitHub-ready** — `README.md` (visão geral + instalação + créditos), `logica.md` (a engenharia reversa explicada do zero, byte por byte) e `.gitignore` (ignora `drg_stats.db`, `watcher.log`, `*.sav`, `__pycache__`, `mint-master/`, screenshots pessoais).
-- [x] **Auto-atualização (perto de automático)** — `atualizar.bat` (duplo clique → `git pull`, com checagem de Git/clone) + aviso **🔔 atualização disponível** na sidebar do dashboard (`checar_atualizacao()`, cacheado 1x/hora, falha em silêncio). Preserva os dados via `.gitignore`. Documentado no `README.md` (EN/PT, seção "Como atualizar"). Ver seção 5/7. Testado (detecta clone, `behind`, e sintaxe do dashboard OK).
+- [x] **Auto-atualização SEM git (04/08/2026)** — `atualizar.py` (Python puro: baixa o ZIP do GitHub e sobrepõe) + `atualizar.bat` fininho (acha o Python e chama o `.py`; self-modify-safe com `& exit /b`). Aviso **🔔 atualização disponível** compara SHA remoto (API do GitHub) com o marcador local `.update_check` (baseline na 1ª vez). **Funciona pra clone E pra ZIP, sem git nem pip.** Preserva os dados porque não estão no ZIP. Documentado no `README.md` (EN/PT). Ver seção 5/7. Testado (sha_remota + download + parse reais; AppTest EN/PT).
 - [x] **Bilíngue (EN/PT)** — `README.md` e `logica.md` têm inglês primeiro, português depois. **Comentários e docstrings do código traduzidos pra inglês** (parser, snapshot, watcher, dashboard, `.bat`s). A documentação técnica interna segue em PT. O `.bat` do painel se chama `abrir_dashboard.bat` (minúsculo).
 - [x] **Dashboard bilíngue com seletor de idioma (03/08/2026)** — a UI abre em **English** (padrão) e tem o seletor **🌐 Language / Idioma** na sidebar (EN/PT ao vivo). Motivo: usuários do Reddit reclamaram da UI só em PT. Textos no dict `TEXTS` (EN/PT); formatadores de número/data trocam por idioma. Testado (AppTest EN/PT).
 - [x] **Fix Naedocyte Hatchling (03/08/2026)** — o GUID `d805ddff…` estava rotulado "Cave Cruiser" (deduzido) mas é a **Naedocyte Hatchling** (Cave Cruiser é dócil, sem kills). Corrigido no `all_drg_enemies.json` + backfill no banco. Ver seção 5.
 - [x] **As 95 mission stats mapeadas via `.pak`** (04/08/2026) — `mission_stats.json` + `tools/extract_mission_stats.py` (leitor de pak UE4 v11/Zlib em Python puro) + `parse_mission_stats()` no parser + aba **"🎖️ Missões & Stats"** bilíngue. Alinhamento correto do GUID (`data[v-20:v-4]`). Confirmado que Cargo Crates/Lost Equipment não existem como stat. Ver seção 4.4. Testado (AppTest EN/PT).
+- [x] **Relabel de Hazard + eixo "Kills"→"Missions" + tile KPI vs bestiário (04/08/2026)** — as barras de missão diziam "Kills" no eixo X (reusam o gráfico de kills); adicionado param `x_label` → "Missions"/"Missões". "Hazard 3" → "Hazard 3+" (é cumulativo, inclui Haz 4) + caption `hazard_note`. Tile "Enemies killed" do Overview renomeado deixando claro que é o contador KPI de missão (bem menor que o bestiário vitalício) + caption `overview_note`. Ver seção 4.4. Testado (AppTest EN/PT).
 
 **A fazer:**
 - [ ] Cosméticos: contagem confiável (mapear as outras fontes de vanity além de `UnLockedVanityItemIDs`).
@@ -732,6 +753,9 @@ etc.) porque aqui cada gráfico é UMA linha só — cor é só identidade visua
   `y="count:Q"`).
 - Novo gráfico de linha de outra métrica: chame `grafico_evolucao(snaps, "coluna_do_banco",
   "Título", "#cor")`. Funciona pra qualquer coluna numérica de `snapshots`.
+
+> Nota: as barras de mission stats reusam o `grafico_barras_especies` via `grafico_categoria`,
+> passando um argumento `x_label` ("Missions"/"Missões") pra o eixo não dizer "Kills" errado.
 
 ### 11.6 O tema (cores) — em DOIS lugares
 
