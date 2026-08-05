@@ -4,6 +4,7 @@ drg_stats.db-journal
 drg_stats.db-wal
 drg_stats.db-shm
 watcher.log
+.update_check
 
 # ---- Saves e dados pessoais do jogo ----
 *.sav
