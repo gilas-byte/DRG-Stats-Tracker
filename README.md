@@ -111,19 +111,18 @@ comparison stays clean.
 ## 🔄 Keeping it updated
 
 When this repository gets new code, updating is one step — and it **never touches your
-data**: the database (`drg_stats.db`), the log and the `.sav` files are gitignored, so your
-history and snapshots survive the update untouched.
+data**. **No Git needed** (only Python, which you already have): the updater downloads the
+newest code from GitHub as a ZIP and overlays it. Your database (`drg_stats.db`), the log
+and the `.sav` files aren't in the repo ZIP, so they're left untouched automatically.
 
-- **Windows:** double-click **`atualizar.bat`** — it runs `git pull` for you.
-- **Any OS (manual):** `git pull`
+- **Windows:** double-click **`atualizar.bat`**.
+- **Any OS (manual):** `python atualizar.py`
 
 The dashboard also **checks on its own**: when a newer version exists on GitHub, a
 **🔔 update available** notice appears in the sidebar (checked at most once per hour).
 
-> **Requirements:** [Git](https://git-scm.com/downloads) installed, and the project obtained
-> via `git clone` (see [Getting started](#-getting-started-any-pc-little-configuration)). If
-> you downloaded the **ZIP**, there's no link to the repo — grab a fresh ZIP, or switch to
-> `git clone` once to get updates from then on.
+> Works the same whether you cloned the repo with Git **or** downloaded the ZIP — the updater
+> doesn't rely on Git at all.
 
 ## 🧠 How the reverse engineering works
 
@@ -156,7 +155,8 @@ dashboard.py            # Streamlit panel: kills, progress, overclocks, table, C
 drg_watcher_launch.bat  # Steam launcher (starts the watcher + the game).
 configurar_steam.bat    # generates the Launch Options line and copies it to the clipboard.
 abrir_dashboard.bat     # double-click opens the panel (installs Streamlit the first time).
-atualizar.bat           # double-click updates the project (git pull); keeps your data.
+atualizar.py            # git-free updater: downloads the newest code from GitHub (ZIP).
+atualizar.bat           # double-click runs atualizar.py; keeps your data. No Git needed.
 guids.json              # GUID -> overclock/cosmetic (weapon, name, cost). The "catalog".
 all_drg_enemies.json    # GUID -> enemy name (the 77 species).
 drg_stats.db            # the database (generated; not under version control).
@@ -299,19 +299,18 @@ dia** (atualizada pro estado do fim do dia), então o comparativo dia-a-dia fica
 ## 🔄 Como atualizar
 
 Quando este repositório recebe código novo, atualizar é um passo só — e **nunca mexe nos
-seus dados**: o banco (`drg_stats.db`), o log e os `.sav` estão no `.gitignore`, então seu
-histórico e suas fotos sobrevivem intactos à atualização.
+seus dados**. **Não precisa de Git** (só de Python, que você já tem): o atualizador baixa o
+código novo do GitHub como ZIP e sobrepõe. O banco (`drg_stats.db`), o log e os `.sav` não
+estão no ZIP do repositório, então ficam intocados automaticamente.
 
-- **Windows:** duplo clique em **`atualizar.bat`** — ele roda o `git pull` pra você.
-- **Qualquer SO (manual):** `git pull`
+- **Windows:** duplo clique em **`atualizar.bat`**.
+- **Qualquer SO (manual):** `python atualizar.py`
 
 O painel também **checa sozinho**: quando existe versão nova no GitHub, aparece um aviso
 **🔔 atualização disponível** na barra lateral (verificado no máximo uma vez por hora).
 
-> **Pré-requisitos:** [Git](https://git-scm.com/downloads) instalado, e o projeto pego via
-> `git clone` (ver [Começando](#-começando-qualquer-pc-pouca-configuração)). Se você baixou
-> o **ZIP**, não existe o vínculo com o repositório — baixe um ZIP novo, ou passe a usar
-> `git clone` uma vez pra receber atualizações daí em diante.
+> Funciona igual se você clonou o repositório com Git **ou** baixou o ZIP — o atualizador
+> não depende de Git de jeito nenhum.
 
 ## 🧠 Como a engenharia reversa funciona
 
@@ -343,7 +342,8 @@ dashboard.py            # painel Streamlit: kills, evolução, overclocks, tabel
 drg_watcher_launch.bat  # lançador pra Steam (sobe o vigia + o jogo).
 configurar_steam.bat    # gera a linha das Launch Options e copia pro clipboard.
 abrir_dashboard.bat     # duplo clique abre o painel (instala o Streamlit na 1ª vez).
-atualizar.bat           # duplo clique atualiza o projeto (git pull); preserva seus dados.
+atualizar.py            # atualizador sem git: baixa o código novo do GitHub (ZIP).
+atualizar.bat           # duplo clique roda o atualizar.py; preserva seus dados. Sem git.
 guids.json              # GUID -> overclock/cosmético (arma, nome, custo). O "catálogo".
 all_drg_enemies.json    # GUID -> nome do bicho (as 77 espécies).
 drg_stats.db            # o banco (gerado; fora do controle de versão).
