@@ -120,6 +120,9 @@ CURATED = {
  "MS_Completed_SecondaryMissions": ("Overview", "Secondary Missions Completed"),
  "MS_Completed_TotalCampaignMissions": ("Overview", "Assignment Missions Completed"),
  "MS_Completed_TotalCampaigns": ("Overview", "Assignments Completed"),
+ # NOTE: this is the KPI/mission-stats kill counter (started tracking in a later game
+ # update) — NOT the lifetime bestiary total (EnemiesKilled map, ~191k). It's much lower.
+ # The dashboard labels this tile "Enemies killed (mission stats)" to avoid the confusion.
  "MS_Killed_TotalEnemies": ("Overview", "Enemies Killed"),
  "MS_Mined_TotalMinerals": ("Overview", "Minerals Mined"),
  "MS_DistanceTravelled": ("Overview", "Distance Travelled"),
@@ -174,7 +177,11 @@ CURATED = {
  "MS_Completed_Engineer": ("Class", "Engineer"),
  "MS_Completed_Gunner": ("Class", "Gunner"),
  "MS_Completed_Scout": ("Class", "Scout"),
- "MS_Completed_Hazard3": ("Hazard", "Hazard 3"),
+ # The game's own asset titles: Hazard3 is "Missions Completed on Hazard 3 OR HIGHER"
+ # (cumulative — includes Hazard 4 & 5), Hazard5 is exactly Hazard 5. There is no
+ # separate Hazard 4 stat in the game files. Label the 3+ one clearly so it doesn't
+ # read as "exactly Hazard 3".
+ "MS_Completed_Hazard3": ("Hazard", "Hazard 3+"),
  "MS_Completed_Hazard5": ("Hazard", "Hazard 5"),
  "MS_Secondary_ApocaBloom": ("Secondary", "Apoca Bloom"),
  "MS_Secondary_BooloCaps": ("Secondary", "Boolo Cap"),
