@@ -34,6 +34,7 @@ import drg_save_parser as drg
 # ------------------------------- configuration ------------------------------
 DB_PATH = "drg_stats.db"
 NAMES_PATH = "all_drg_enemies.json"        # optional; if missing, that's fine
+GUIDS_PATH = "guids.json"                  # overclock catalog; optional
 
 # Paths where the save usually lives. Accepts wildcards (*) and OS variables.
 SAVE_GLOBS = [
@@ -62,7 +63,8 @@ CREATE TABLE IF NOT EXISTS snapshots (
     missions_completed INTEGER,
     times_retired    INTEGER,
     playtime_seconds REAL,
-    total_kills      INTEGER
+    total_kills      INTEGER,
+    overclocks_forged INTEGER            -- weapon OCs forged (crossed with guids.json)
 );
 
 -- One row per species PER snapshot. We store the GUID (the stable key that ALWAYS
@@ -174,6 +176,18 @@ def load_names() -> dict:
     return {}
 
 
+def _contar_overclocks(forged) -> int | None:
+    """How many WEAPON overclocks are forged: intersect the save's ForgedSchematics
+    (overclocks + matrix-core cosmetics, mixed) with the Weapons catalog in guids.json.
+    Returns None if guids.json is missing — so we store NULL instead of a fake 0
+    (don't fabricate history; the dashboard delta just won't show an arrow)."""
+    p = Path(GUIDS_PATH)
+    if not p.exists():
+        return None
+    catalogo = {g.upper() for g in json.loads(p.read_text(encoding="utf-8")).get("Weapons", {})}
+    return sum(1 for g in forged if g.upper() in catalogo)
+
+
 def conectar(db_path: str) -> sqlite3.Connection:
     conn = sqlite3.connect(db_path)
     # SQLITE GOTCHA: it does NOT enforce FOREIGN KEY by default. You have to enable it
@@ -193,7 +207,7 @@ def _migrar(conn: sqlite3.Connection):
     It's idempotent: on an already-updated database it does nothing.
     """
     existentes = {row[1] for row in conn.execute("PRAGMA table_info(snapshots)")}
-    novas = {"missions_completed": "INTEGER"}
+    novas = {"missions_completed": "INTEGER", "overclocks_forged": "INTEGER"}
     for coluna, tipo in novas.items():
         if coluna not in existentes:
             # NOTE: the f-string here is SAFE and necessary. The "never f-string SQL"
@@ -238,7 +252,8 @@ def tirar_snapshot(conn: sqlite3.Connection, save_path: Path, names: dict, forca
     agora = datetime.now(timezone.utc).isoformat(timespec="seconds")
     valores = (agora, save_path.name, s["level"], s["credits"], s["perk_points"],
                s["games_played"], s["missions_completed"], s["times_retired"],
-               s["playtime_seconds"], s["total_kills"])
+               s["playtime_seconds"], s["total_kills"],
+               _contar_overclocks(s["forged_schematics"]))
 
     hoje = datetime.now().astimezone().date()
     if ultimo and _data_local(ultimo[3]) == hoje:
@@ -248,7 +263,7 @@ def tirar_snapshot(conn: sqlite3.Connection, save_path: Path, names: dict, forca
             """UPDATE snapshots SET
                  taken_at=?, save_file=?, level=?, credits=?, perk_points=?,
                  games_played=?, missions_completed=?, times_retired=?,
-                 playtime_seconds=?, total_kills=?
+                 playtime_seconds=?, total_kills=?, overclocks_forged=?
                WHERE id=?""",
             (*valores, snap_id),
         )
@@ -258,8 +273,9 @@ def tirar_snapshot(conn: sqlite3.Connection, save_path: Path, names: dict, forca
         cur = conn.execute(
             """INSERT INTO snapshots
                (taken_at, save_file, level, credits, perk_points,
-                games_played, missions_completed, times_retired, playtime_seconds, total_kills)
-               VALUES (?,?,?,?,?,?,?,?,?,?)""",
+                games_played, missions_completed, times_retired, playtime_seconds,
+                total_kills, overclocks_forged)
+               VALUES (?,?,?,?,?,?,?,?,?,?,?)""",
             valores,
         )
         snap_id = cur.lastrowid

@@ -823,7 +823,16 @@ with aba_ocs:
         oc = tabela_overclocks(ref, estado["forjados"])
         tem_t, tot_t = int(oc["tem"].sum()), int(oc["total"].sum())
         m1, m2, m3 = st.columns(3)
-        m1.metric(T("oc_forged"), f"{tem_t}/{tot_t}")
+        # delta = OCs forged since the PREVIOUS DAY's snapshot. This tile shows the LIVE
+        # count (tem_t), so we anchor the delta on it and compare against the most recent
+        # snapshot from an EARLIER local day that has a recorded count. Old snapshots are
+        # NULL (the column is new; we don't fabricate history) and are skipped — so the
+        # arrow only appears once a prior day has a recorded count.
+        hoje0 = pd.Timestamp(datetime.now().date())
+        prev_oc = snaps.loc[(snaps["quando"] < hoje0) & snaps["overclocks_forged"].notna(),
+                            "overclocks_forged"]
+        d_oc = tem_t - int(prev_oc.iloc[-1]) if not prev_oc.empty else 0
+        m1.metric(T("oc_forged"), f"{tem_t}/{tot_t}", fmt_num(d_oc) if d_oc else None)
         m2.metric(T("oc_missing"), fmt_num(tot_t - tem_t))
         m3.metric(T("oc_complete"), f"{tem_t / tot_t * 100:.0f}%")
         st.progress(tem_t / tot_t)
