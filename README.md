@@ -22,8 +22,8 @@ fixes that.
 
 - 🐛 **Kills per species** — a ranking of the 77 bestiary species, straight from the save.
 - 📈 **Progress over time** — kills, credits, rank and playtime across days.
-- ⚙️ **Overclock progress** — how many you've forged per weapon (e.g. `100/160`) and the
-  exact list of what's missing.
+- ⚙️ **Overclock progress** — how many you've forged per weapon (e.g. `100/160`), the
+  exact list of what's missing, and how many you forged since the previous snapshot.
 - 🆕 **"Since last snapshot"** — what grew from one day to the next.
 - 📸 **Automatic capture** — a "watcher" takes a snapshot on its own while you play (mission
   start / end / game close), no terminal needed.
@@ -211,8 +211,8 @@ de cada vez, sem histórico e sem gráfico. Este projeto resolve isso.
 
 - 🐛 **Kills por espécie** — ranking das 77 espécies do bestiário, do save.
 - 📈 **Evolução no tempo** — kills, créditos, rank e tempo de jogo ao longo dos dias.
-- ⚙️ **Progresso de overclocks** — quantos você forjou de cada arma (ex.: `100/160`) e a
-  lista exata do que falta.
+- ⚙️ **Progresso de overclocks** — quantos você forjou de cada arma (ex.: `100/160`), a
+  lista exata do que falta e quantos você forjou desde a foto anterior.
 - 🆕 **"Desde a última foto"** — o que cresceu de um dia pro outro.
 - 📸 **Captura automática** — um "vigia" tira uma foto sozinho quando você joga (abre a
   missão / termina / fecha o jogo), sem você abrir terminal nenhum.
